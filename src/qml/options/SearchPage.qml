@@ -359,6 +359,25 @@ Page {
 
                     SettingsBoxSeparator {
                         Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            text: qsTr("Resume when the cursor leaves the subtitles")
+                            enabled: MementoSettings.searchPauseOnHover
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            enabled: MementoSettings.searchPauseOnHover
+                            checked: MementoSettings.searchResumeOnHoverExit
+                            onClicked: MementoSettings.searchResumeOnHoverExit = checked
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
                         visible: Features.mecab
                     }
 

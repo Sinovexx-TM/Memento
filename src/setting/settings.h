@@ -280,6 +280,13 @@ class Settings : public QObject
     )
 
     Q_PROPERTY(
+        bool searchResumeOnHoverExit
+        READ searchResumeOnHoverExit
+        WRITE setSearchResumeOnHoverExit
+        NOTIFY searchResumeOnHoverExitChanged
+    )
+
+    Q_PROPERTY(
         bool searchAutoPlayAudio
         READ searchAutoPlayAudio
         WRITE setSearchAutoPlayAudio
@@ -1308,6 +1315,23 @@ public:
         bool value = Keys::Search::PAUSE_ON_HOVER_DEFAULT);
 
     /**
+     * @brief Resumes playback when the cursor leaves the subtitles, if the
+     * pause was caused by hovering and no dictionary popup is open.
+     *
+     * @return true to resume after a hover pause, false otherwise.
+     */
+    [[nodiscard]]
+    bool searchResumeOnHoverExit() const noexcept;
+
+    /**
+     * @brief Sets whether to resume playback after a hover pause.
+     *
+     * @param value true to resume after a hover pause, false otherwise.
+     */
+    void setSearchResumeOnHoverExit(
+        bool value = Keys::Search::RESUME_ON_HOVER_EXIT_DEFAULT);
+
+    /**
      * @brief Automatically plays the audio of the top result when a search
      * completes.
      *
@@ -2190,6 +2214,13 @@ signals:
     void searchPauseOnHoverChanged(bool value);
 
     /**
+     * @brief Emitted when the search resume on hover exit setting is changed.
+     *
+     * @param value The new value.
+     */
+    void searchResumeOnHoverExitChanged(bool value);
+
+    /**
      * @brief Emitted when the search auto play audio setting is changed.
      *
      * @param value The new value.
@@ -2643,6 +2674,9 @@ private:
 
         /* true to pause the player on subtitle search hover */
         bool pauseOnHover{Keys::Search::PAUSE_ON_HOVER_DEFAULT};
+
+        /* true to resume playback when leaving the subtitles after a hover pause */
+        bool resumeOnHoverExit{Keys::Search::RESUME_ON_HOVER_EXIT_DEFAULT};
 
         /* true to automatically play top search result audio */
         bool autoPlayAudio{Keys::Search::AUTO_PLAY_AUDIO_DEFAULT};

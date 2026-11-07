@@ -1,0 +1,78 @@
+# Fork-only workflow: builds the Windows installer and portable zip on every
+# push to master (and on demand from the Actions tab) and uploads them as a
+# downloadable artifact. Same build steps as the Windows job in release.yml.
+name: Windows Build
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Build Windows x86_64
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Install dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ucrt64
+          update: true
+          install: >-
+            zip
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-git
+            mingw-w64-ucrt-x86_64-json-c
+            mingw-w64-ucrt-x86_64-libzip
+            mingw-w64-ucrt-x86_64-mecab
+            mingw-w64-ucrt-x86_64-mpv
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-nsis
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-qt6
+            mingw-w64-ucrt-x86_64-sqlite3
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build installer and portable directory
+        run: |
+          set -euo pipefail
+
+          ./windows/build-installer.sh \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMEMENTO_RELEASE_BUILD=ON \
+            -DMEMENTO_MECAB_SUPPORT=ON \
+            -DMEMENTO_WIN32_EXECUTABLE=ON
+
+      - name: Package
+        run: |
+          set -euo pipefail
+
+          test -s build/Memento_Windows_x86_64_Installer.exe
+          test -d build/Memento_x86_64
+          (
+            cd build
+            zip -qr ../Memento_Windows_x86_64.zip Memento_x86_64
+          )
+          cp build/Memento_Windows_x86_64_Installer.exe .
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Memento-Windows-${{ github.sha }}
+          path: |
+            Memento_Windows_x86_64_Installer.exe
+            Memento_Windows_x86_64.zip
+          if-no-files-found: error
+          retention-days: 30

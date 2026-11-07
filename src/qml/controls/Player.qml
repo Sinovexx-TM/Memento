@@ -23,6 +23,11 @@ MpvPlayer {
 
     property bool ocrMode: false
 
+    /* True while the player is paused because the cursor hovered the subtitles
+     * (searchPauseOnHover). Cleared as soon as playback resumes for any reason,
+     * so a manual pause is never undone by resumeAfterHoverPause(). */
+    property bool hoverPaused: false
+
     signal auxiliarySearchRequested(string text)
 
     enum OscVisibility
@@ -97,6 +102,31 @@ MpvPlayer {
     function mouseMoved(x, y) {
         root.controller.sendMouse(x, y);
         cursorTimer.restart();
+    }
+
+    /**
+     * Resumes playback if it was paused by hovering the subtitles, the cursor
+     * is no longer on them and no dictionary popup is open.
+     */
+    function resumeAfterHoverPause() {
+        if (!root.hoverPaused)
+        {
+            return;
+        }
+        if (!MementoSettings.searchResumeOnHoverExit)
+        {
+            root.hoverPaused = false;
+            return;
+        }
+        if (subtitleHover.hovered || definitionPopup.visible)
+        {
+            return;
+        }
+        root.hoverPaused = false;
+        if (root.state.pause)
+        {
+            root.controller.play();
+        }
     }
 
     onFileLoaded: {
@@ -268,6 +298,10 @@ MpvPlayer {
         id: screensaver
     }
     onPauseChanged: {
+        if (!root.state.pause)
+        {
+            root.hoverPaused = false;
+        }
         if (root.state.pause)
         {
             screensaver.uninhibit();
@@ -381,6 +415,7 @@ MpvPlayer {
         onClosed: {
             definitionPopup.clearResults();
             interactiveTimer.restart();
+            root.resumeAfterHoverPause();
         }
 
         onPlayerWidthChanged: definitionPopup.clearResults()
@@ -630,10 +665,19 @@ MpvPlayer {
         HoverHandler {
             id: subtitleHover
 
-            /* Implements auto pause on hover */
+            /* Implements auto pause on hover (and resume on leaving) */
             onHoveredChanged: {
-                if (subtitleHover.hovered && MementoSettings.searchPauseOnHover)
+                if (!subtitleHover.hovered)
                 {
+                    root.resumeAfterHoverPause();
+                }
+                else if (MementoSettings.searchPauseOnHover)
+                {
+                    /* Only a pause started here may be resumed automatically */
+                    if (!root.state.pause)
+                    {
+                        root.hoverPaused = true;
+                    }
                     root.controller.pause()
                 }
             }

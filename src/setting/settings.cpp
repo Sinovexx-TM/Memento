@@ -695,6 +695,12 @@ void Settings::loadSearchSettings()
             Keys::Search::PAUSE_ON_HOVER_DEFAULT
         ).toBool()
     );
+    setSearchResumeOnHoverExit(
+        s.value(
+            Keys::Search::RESUME_ON_HOVER_EXIT,
+            Keys::Search::RESUME_ON_HOVER_EXIT_DEFAULT
+        ).toBool()
+    );
     setSearchAutoPlayAudio(
         s.value(
             Keys::Search::AUTO_PLAY_AUDIO,
@@ -787,6 +793,10 @@ void Settings::writeSearchSettings()
         searchPauseOnHover()
     );
     s.setValue(
+        Keys::Search::RESUME_ON_HOVER_EXIT,
+        searchResumeOnHoverExit()
+    );
+    s.setValue(
         Keys::Search::AUTO_PLAY_AUDIO,
         searchAutoPlayAudio()
     );
@@ -830,6 +840,7 @@ void Settings::defaultSearchSettings()
     setSearchHideMpvSubs();
     setSearchHideSubs();
     setSearchPauseOnHover();
+    setSearchResumeOnHoverExit();
     setSearchAutoPlayAudio();
     setSearchGlossaryStyle();
     setSearchReplaceNewlines();
@@ -2077,6 +2088,21 @@ void Settings::setSearchPauseOnHover(bool value)
     }
     m_search.pauseOnHover = value;
     emit searchPauseOnHoverChanged(m_search.pauseOnHover);
+}
+
+bool Settings::searchResumeOnHoverExit() const noexcept
+{
+    return m_search.resumeOnHoverExit;
+}
+
+void Settings::setSearchResumeOnHoverExit(bool value)
+{
+    if (m_search.resumeOnHoverExit == value)
+    {
+        return;
+    }
+    m_search.resumeOnHoverExit = value;
+    emit searchResumeOnHoverExitChanged(m_search.resumeOnHoverExit);
 }
 
 bool Settings::searchAutoPlayAudio() const noexcept

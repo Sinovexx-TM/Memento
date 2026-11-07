@@ -235,6 +235,9 @@ namespace Keys
         constexpr const char *PAUSE_ON_HOVER = "hover-pause";
         constexpr bool PAUSE_ON_HOVER_DEFAULT = false;
 
+        constexpr const char *RESUME_ON_HOVER_EXIT = "hover-resume";
+        constexpr bool RESUME_ON_HOVER_EXIT_DEFAULT = true;
+
         constexpr const char *AUTO_PLAY_AUDIO = "auto-play-audio";
         constexpr bool AUTO_PLAY_AUDIO_DEFAULT = false;
 
