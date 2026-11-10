@@ -39,17 +39,10 @@ Item {
                 root.term.readingAsExpression = true;
             }
 
-            let id = -1;
-            let selected = false;
+            /* Fork: every sense starts unticked */
             for (let i = 0; i < root.term.definitions.length; ++i)
             {
-                if (root.term.definitions[i].dictionaryInfo.id !== id)
-                {
-                    id = root.term.definitions[i].dictionaryInfo.id;
-                    selected = !AnkiConfig.profile.excludeGlossaries.includes(
-                                root.term.definitions[i].dictionaryInfo.name);
-                }
-                root.term.definitions[i].selected = selected;
+                root.term.definitions[i].selected = false;
             }
 
             root.term.ankiChecked = true;
