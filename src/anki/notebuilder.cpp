@@ -1171,10 +1171,7 @@ static GlossaryData getGlossary(const QList<TermDefinition *> &definitions)
         "</style></ol></div>";
     static const QString LIST_ITEM_DICTIONARY = "<li data-dictionary=\"%1\">";
 
-    /* Fork: nothing ticked -> empty glossary instead of an empty list */
-    if (std::none_of(
-            std::begin(definitions), std::end(definitions),
-            [] (const TermDefinition *def) { return def->selected(); }))
+    if (definitions.empty())
     {
         return {};
     }
