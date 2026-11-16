@@ -28,6 +28,9 @@ MpvPlayer {
      * so a manual pause is never undone by resumeAfterHoverPause(). */
     property bool hoverPaused: false
 
+    /* When the hover pause was started (ms since epoch) */
+    property double hoverPauseTime: 0
+
     signal auxiliarySearchRequested(string text)
 
     enum OscVisibility
@@ -449,7 +452,15 @@ MpvPlayer {
             }
             definitionPopup.clearResults();
         }
-        onPositionChanged: definitionPopup.clearResults()
+        onPositionChanged: {
+            /* The video was still moving when the hover pause was sent, so
+             * the slider ticks once more right after it. Ignore that tick. */
+            if (root.hoverPaused && Date.now() - root.hoverPauseTime < 600)
+            {
+                return;
+            }
+            definitionPopup.clearResults();
+        }
 
         Rectangle {
             id: dictionaryBorderRectangle
@@ -546,9 +557,13 @@ MpvPlayer {
             {
                 return;
             }
-            else if (!root.state.pause && !root.hoverPaused)
+            else if (!root.state.pause &&
+                     !root.hoverPaused &&
+                     !MementoSettings.searchPauseOnHover)
             {
-                /* Neither paused nor about to be paused by the hover itself */
+                /* Not paused and not about to be paused by the hover itself.
+                 * (The hover pause may start just after this index change,
+                 * so the setting is checked too, not only hoverPaused.) */
                 return;
             }
             definitionPopupTimer.restart();
@@ -713,6 +728,7 @@ MpvPlayer {
                     if (!root.state.pause)
                     {
                         root.hoverPaused = true;
+                        root.hoverPauseTime = Date.now();
                     }
                     root.controller.pause()
                 }
