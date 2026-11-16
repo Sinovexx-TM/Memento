@@ -25,19 +25,16 @@ Rectangle {
         acceptedButtons: Qt.AllButtons
     }
 
-    /* Dark gradient behind the Netflix controls, reaching above them */
+    /* Dark gradient behind the Netflix controls. It starts at the red playbar
+     * and never reaches above it: the controls are drawn over the subtitles,
+     * so anything taller darkened them. */
     Rectangle {
         visible: root.netflix
-        anchors {
-            left: parent.left
-            right: parent.right
-        }
-        height: 240
-        y: root.height - height
+        anchors.fill: parent
         z: -1
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#00000000" }
-            GradientStop { position: 0.6; color: "#99000000" }
+            GradientStop { position: 0.0; color: "#40000000" }
+            GradientStop { position: 0.4; color: "#99000000" }
             GradientStop { position: 1.0; color: "#E6000000" }
         }
     }
