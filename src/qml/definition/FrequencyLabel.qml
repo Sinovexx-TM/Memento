@@ -1,7 +1,7 @@
 import QtQuick
 import Ripose.Memento
 
-/* Two-part frequency pill: dictionary name, then the value */
+/* Yomitan-style frequency tag: green "Name:" pill, value in a dark box with a green outline */
 Row {
     id: root
 
@@ -12,7 +12,7 @@ Row {
 
     MetaLabel {
         visible: root.name.length > 0
-        text: root.name
+        text: root.name + ":"
         tip: ""
         color: "#5cb85c"
     }
@@ -20,6 +20,8 @@ Row {
     MetaLabel {
         text: root.value
         tip: ""
-        color: PopupPalette.frequencyValue
+        color: PopupPalette.window
+        border.color: "#5cb85c"
+        border.width: 1
     }
 }

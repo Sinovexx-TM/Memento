@@ -320,7 +320,7 @@ Item {
                                  root.term &&
                                  !root.term.ankiAdding
                         icon.name: MementoSettings.interfaceSystemIcons ? "list-add" : null
-                        icon.source: Utils.toImageProvider("add", PopupPalette.text)
+                        icon.source: Utils.toImageProvider("add", "#5cb85c")
 
                         onClicked: {
                             const audioSource = audioFiles.files.length > 0 ?

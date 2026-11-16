@@ -61,6 +61,8 @@ enum class WordForm
     sugiru,
     sou,
     e,
+    cha,
+    rya,
     ba,
     ki,
     toku,

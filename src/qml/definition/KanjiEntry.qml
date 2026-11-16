@@ -164,7 +164,7 @@ Item {
                          root.kanji.addable
                 enabled: root.kanji && !root.kanji.ankiAdding
                 icon.name: MementoSettings.interfaceSystemIcons ? "list-add" : null
-                icon.source: Utils.toImageProvider("add", PopupPalette.text)
+                icon.source: Utils.toImageProvider("add", "#5cb85c")
                 onClicked: root.addKanji()
             }
         }

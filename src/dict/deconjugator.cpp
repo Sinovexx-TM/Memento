@@ -373,7 +373,7 @@ static const QList<Rule> rules = {
     { u8"つ", u8"っちゃう", WordForm::godanVerb, WordForm::chau },
     { u8"す", u8"しちゃう", WordForm::godanVerb, WordForm::chau },
     { u8"く", u8"いちゃう", WordForm::godanVerb, WordForm::chau },
-    { u8"ぐ", u8"いちゃう", WordForm::godanVerb, WordForm::chau },
+    { u8"ぐ", u8"いじゃう", WordForm::godanVerb, WordForm::chau },
     { u8"ぶ", u8"んじゃう", WordForm::godanVerb, WordForm::chau },
     { u8"ぬ", u8"んじゃう", WordForm::godanVerb, WordForm::chau },
     { u8"む", u8"んじゃう", WordForm::godanVerb, WordForm::chau },
@@ -392,7 +392,7 @@ static const QList<Rule> rules = {
     { u8"つ", u8"っちまう", WordForm::godanVerb, WordForm::chimau },
     { u8"す", u8"しちまう", WordForm::godanVerb, WordForm::chimau },
     { u8"く", u8"いちまう", WordForm::godanVerb, WordForm::chimau },
-    { u8"ぐ", u8"いちまう", WordForm::godanVerb, WordForm::chimau },
+    { u8"ぐ", u8"いじまう", WordForm::godanVerb, WordForm::chimau },
     { u8"ぶ", u8"んじまう", WordForm::godanVerb, WordForm::chimau },
     { u8"ぬ", u8"んじまう", WordForm::godanVerb, WordForm::chimau },
     { u8"む", u8"んじまう", WordForm::godanVerb, WordForm::chimau },
@@ -402,8 +402,8 @@ static const QList<Rule> rules = {
     { u8"する", u8"しちまう", WordForm::suruVerb, WordForm::chimau },
     { u8"為る", u8"為ちまう", WordForm::suruVerb, WordForm::chimau },
     { u8"行く", u8"行っちまう", WordForm::godanVerb, WordForm::chimau },
-    { u8"問う", u8"問うちゃう", WordForm::godanVerb, WordForm::chimau },
-    { u8"請う", u8"請うちゃう", WordForm::godanVerb, WordForm::chimau },
+    { u8"問う", u8"問うちまう", WordForm::godanVerb, WordForm::chimau },
+    { u8"請う", u8"請うちまう", WordForm::godanVerb, WordForm::chimau },
 
     //Continuous
     { u8"で", u8"でいる", WordForm::te, WordForm::continuous },
@@ -465,6 +465,57 @@ static const QList<Rule> rules = {
     { u8"", u8"なさい", WordForm::conjunctive, WordForm::nasai },
     { u8"", u8"そう", WordForm::conjunctive, WordForm::sou },
     { u8"", u8"すぎる", WordForm::conjunctive, WordForm::sugiru },
+
+    //Added (fork): forms the deconjugation test found missing
+    //Past + ら: 書いたら, 読んだら
+    { u8"た", u8"たら", WordForm::past, WordForm::tara },
+    { u8"だ", u8"だら", WordForm::past, WordForm::tara },
+    //ちゃ/じゃ = ては/では: 書いちゃ, 読んじゃ, 泳いじゃ
+    { u8"て", u8"ちゃ", WordForm::te, WordForm::cha },
+    { u8"で", u8"じゃ", WordForm::te, WordForm::cha },
+    //りゃ = れば: 高けりゃ, 食べりゃ, すりゃ, なけりゃ
+    { u8"れば", u8"りゃ", WordForm::ba, WordForm::rya },
+    //Short causative-passive: 書かされる, 待たされた
+    { u8"せる", u8"される", WordForm::causative, WordForm::passive },
+    //Slang adjective endings: 高え, すげえ, やべえ, うめえ, ひでえ, おもしれえ
+    { u8"い", u8"え", WordForm::adjective, WordForm::e },
+    { u8"い", u8"ぇ", WordForm::adjective, WordForm::e },
+    { u8"かい", u8"けえ", WordForm::adjective, WordForm::e },
+    { u8"かい", u8"けぇ", WordForm::adjective, WordForm::e },
+    { u8"かい", u8"けー", WordForm::adjective, WordForm::e },
+    { u8"がい", u8"げえ", WordForm::adjective, WordForm::e },
+    { u8"がい", u8"げぇ", WordForm::adjective, WordForm::e },
+    { u8"がい", u8"げー", WordForm::adjective, WordForm::e },
+    { u8"さい", u8"せえ", WordForm::adjective, WordForm::e },
+    { u8"さい", u8"せぇ", WordForm::adjective, WordForm::e },
+    { u8"さい", u8"せー", WordForm::adjective, WordForm::e },
+    { u8"まい", u8"めえ", WordForm::adjective, WordForm::e },
+    { u8"まい", u8"めぇ", WordForm::adjective, WordForm::e },
+    { u8"まい", u8"めー", WordForm::adjective, WordForm::e },
+    { u8"らい", u8"れえ", WordForm::adjective, WordForm::e },
+    { u8"らい", u8"れぇ", WordForm::adjective, WordForm::e },
+    { u8"らい", u8"れー", WordForm::adjective, WordForm::e },
+    { u8"わい", u8"ええ", WordForm::adjective, WordForm::e },
+    { u8"わい", u8"えぇ", WordForm::adjective, WordForm::e },
+    { u8"わい", u8"えー", WordForm::adjective, WordForm::e },
+    { u8"ばい", u8"べえ", WordForm::adjective, WordForm::e },
+    { u8"ばい", u8"べぇ", WordForm::adjective, WordForm::e },
+    { u8"ばい", u8"べー", WordForm::adjective, WordForm::e },
+    { u8"ごい", u8"げえ", WordForm::adjective, WordForm::e },
+    { u8"ごい", u8"げぇ", WordForm::adjective, WordForm::e },
+    { u8"ごい", u8"げー", WordForm::adjective, WordForm::e },
+    { u8"どい", u8"でえ", WordForm::adjective, WordForm::e },
+    { u8"どい", u8"でぇ", WordForm::adjective, WordForm::e },
+    { u8"どい", u8"でー", WordForm::adjective, WordForm::e },
+    { u8"そい", u8"せえ", WordForm::adjective, WordForm::e },
+    { u8"そい", u8"せぇ", WordForm::adjective, WordForm::e },
+    { u8"そい", u8"せー", WordForm::adjective, WordForm::e },
+    { u8"ろい", u8"れえ", WordForm::adjective, WordForm::e },
+    { u8"ろい", u8"れぇ", WordForm::adjective, WordForm::e },
+    { u8"ろい", u8"れー", WordForm::adjective, WordForm::e },
+    { u8"こい", u8"けえ", WordForm::adjective, WordForm::e },
+    { u8"こい", u8"けぇ", WordForm::adjective, WordForm::e },
+    { u8"こい", u8"けー", WordForm::adjective, WordForm::e },
 };
 
 static QString wordFormToString(WordForm ruleType)
@@ -535,6 +586,12 @@ static QString wordFormToString(WordForm ruleType)
         return Deconjugator::tr("-sou");
     case WordForm::e:
         return Deconjugator::tr("-e");
+
+    case WordForm::cha:
+        return Deconjugator::tr("-cha");
+
+    case WordForm::rya:
+        return Deconjugator::tr("-rya");
     case WordForm::ki:
         return Deconjugator::tr("-ki");
     case WordForm::toku:
