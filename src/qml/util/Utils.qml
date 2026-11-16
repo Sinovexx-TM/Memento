@@ -5,6 +5,10 @@ import QtQml
 import Ripose.Memento
 
 QtObject {
+    /* Number of modal dialogs currently open. Dialogs started from the
+     * dictionary popup raise it so the popup is not closed from under them. */
+    property int modalDialogs: 0
+
     /**
      * Converts a built-in image name and color to a colored-image URL.
      * @param name The name of the SVG icon in the images/ path.

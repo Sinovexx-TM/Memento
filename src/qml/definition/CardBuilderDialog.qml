@@ -228,7 +228,11 @@ Dialog {
 
     onAccepted: AnkiClient.setCardBuilderOverride(sentenceArea.text, root.selStart, root.selEnd)
     onRejected: AnkiClient.clearCardBuilderOverride()
-    onClosed: root.stopPlayhead()
+    onAboutToShow: Utils.modalDialogs += 1
+    onClosed: {
+        Utils.modalDialogs -= 1;
+        root.stopPlayhead();
+    }
 
     /* GSM-like look: field names on the left, fields on the right */
     readonly property color accent: "#4a8fe0"

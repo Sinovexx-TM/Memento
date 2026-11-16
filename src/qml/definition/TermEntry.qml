@@ -186,6 +186,8 @@ Item {
         anchors.centerIn: parent
         modal: true
         standardButtons: Dialog.Ok
+        onAboutToShow: Utils.modalDialogs += 1
+        onClosed: Utils.modalDialogs -= 1
 
         Label {
             id: errorLabel

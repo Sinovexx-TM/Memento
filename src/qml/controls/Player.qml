@@ -129,6 +129,26 @@ MpvPlayer {
         }
     }
 
+    /* After a lookup the popup stays open on its own. When the video was
+     * paused by hovering, close it once the cursor is on neither the
+     * subtitles nor the popup, so playback can resume. The wait lets the
+     * cursor cross the gap between the subtitles and the popup. */
+    Timer {
+        id: popupLeaveTimer
+        interval: 400
+        onTriggered: {
+            if (root.hoverPaused &&
+                    MementoSettings.searchResumeOnHoverExit &&
+                    definitionPopup.visible &&
+                    !subtitleHover.hovered &&
+                    !popupHover.hovered &&
+                    Utils.modalDialogs === 0)
+            {
+                definitionPopup.clearResults();
+            }
+        }
+    }
+
     onFileLoaded: {
         if (MementoSettings.searchHideMpvSubs)
         {
@@ -438,6 +458,11 @@ MpvPlayer {
             border.color: MementoPalette.border
             border.width: Features.isUnix ? 1 : 0
 
+            HoverHandler {
+                id: popupHover
+                onHoveredChanged: hovered ? popupLeaveTimer.stop() : popupLeaveTimer.restart()
+            }
+
             DefinitionPage {
                 id: definitionPage
                 anchors.fill: parent
@@ -679,9 +704,11 @@ MpvPlayer {
                 if (!subtitleHover.hovered)
                 {
                     root.resumeAfterHoverPause();
+                    popupLeaveTimer.restart();
                 }
                 else if (MementoSettings.searchPauseOnHover)
                 {
+                    popupLeaveTimer.stop();
                     /* Only a pause started here may be resumed automatically */
                     if (!root.state.pause)
                     {
