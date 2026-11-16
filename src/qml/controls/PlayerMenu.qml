@@ -52,24 +52,34 @@ MenuBar {
         return name;
     }
 
-    Component.onCompleted: {
-        if (Features.isWindows)
-        {
-            root.background = windowsBackground;
+    /* No solid bar: white text on a dark gradient fading down from the top,
+     * like the bottom controls */
+    palette.buttonText: "#ffffff"
+    palette.windowText: "#ffffff"
+
+    background: Item {
+        implicitHeight: 30
+
+        Rectangle {
+            anchors {
+                left: parent.left
+                right: parent.right
+                top: parent.top
+            }
+            height: 140
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#B3000000" }
+                GradientStop { position: 0.5; color: "#59000000" }
+                GradientStop { position: 1.0; color: "#00000000" }
+            }
         }
     }
-
-    resources: [
-        Page {
-            id: windowsBackground
-        }
-    ]
 
     Clipboard {
         id: clipboard
     }
 
-    Menu {
+    DarkMenu {
         title: qsTr("&Media")
         width: Math.max(contentWidth + leftPadding + rightPadding, root.minimumMenuWidth)
 
@@ -101,7 +111,7 @@ MenuBar {
             onTriggered: loadUrlDialog.open()
         }
 
-        Menu {
+        DarkMenu {
             id: recentMenu
             title: qsTr("&Recent")
             enabled: MementoSettings.recentFiles.length > 0
@@ -130,7 +140,9 @@ MenuBar {
                 }
             }
 
-            MenuSeparator {}
+            MenuSeparator {
+            contentItem: Rectangle { implicitWidth: 188; implicitHeight: 1; color: "#33ffffff" }
+        }
 
             Action {
                 text: qsTr("&Clear Recents")
@@ -139,7 +151,7 @@ MenuBar {
         }
     }
 
-    Menu {
+    DarkMenu {
         id: audioMenu
         title: qsTr("&Audio")
         width: Math.max(contentWidth + leftPadding + rightPadding, root.minimumMenuWidth)
@@ -185,7 +197,7 @@ MenuBar {
         }
     }
 
-    Menu {
+    DarkMenu {
         id: subtitleMenu
         title: qsTr("&Subtitle")
         width: Math.max(contentWidth + leftPadding + rightPadding, root.minimumMenuWidth)
@@ -206,7 +218,7 @@ MenuBar {
             onTriggered: MementoSettings.behaviorSubtitlePause = checked
         }
 
-        Menu {
+        DarkMenu {
             title: qsTr("&Size and Position")
 
             Action {
@@ -337,14 +349,16 @@ MenuBar {
             }
         }
 
-        MenuSeparator {}
+        MenuSeparator {
+            contentItem: Rectangle { implicitWidth: 188; implicitHeight: 1; color: "#33ffffff" }
+        }
 
         Action {
             text: qsTr("&Add Subtitle...")
             onTriggered: loadSubtitleDialog.open()
         }
 
-        Menu {
+        DarkMenu {
             id: secondarySubtitleMenu
             title: qsTr("&Second Track")
 
@@ -390,7 +404,9 @@ MenuBar {
             }
         }
 
-        MenuSeparator {}
+        MenuSeparator {
+            contentItem: Rectangle { implicitWidth: 188; implicitHeight: 1; color: "#33ffffff" }
+        }
 
         ActionGroup {
             id: subtitleTrackGroup
@@ -447,7 +463,7 @@ MenuBar {
         }
     }
 
-    Menu {
+    DarkMenu {
         id: toolsMenu
         title: qsTr("&Tools")
         width: Math.max(contentWidth + leftPadding + rightPadding, root.minimumMenuWidth)
@@ -518,12 +534,12 @@ MenuBar {
         }
     }
 
-    Menu {
+    DarkMenu {
         id: settingsMenu
         title: qsTr("&Settings")
         width: Math.max(contentWidth + leftPadding + rightPadding, root.minimumMenuWidth)
 
-        Menu {
+        DarkMenu {
             id: ankiProfileMenu
             title: qsTr("&Anki Profile")
             enabled: AnkiConfig.enabled
