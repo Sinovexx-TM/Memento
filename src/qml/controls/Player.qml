@@ -129,6 +129,15 @@ MpvPlayer {
         }
     }
 
+    /* Waits a moment before resuming so that a brief slip of the cursor off
+     * the subtitles (which would pause/resume and clear the popup results)
+     * does not interrupt lookups. */
+    Timer {
+        id: hoverResumeTimer
+        interval: 350
+        onTriggered: root.resumeAfterHoverPause()
+    }
+
     onFileLoaded: {
         if (MementoSettings.searchHideMpvSubs)
         {
@@ -415,7 +424,7 @@ MpvPlayer {
         onClosed: {
             definitionPopup.clearResults();
             interactiveTimer.restart();
-            root.resumeAfterHoverPause();
+            hoverResumeTimer.restart();
         }
 
         onPlayerWidthChanged: definitionPopup.clearResults()
@@ -669,10 +678,11 @@ MpvPlayer {
             onHoveredChanged: {
                 if (!subtitleHover.hovered)
                 {
-                    root.resumeAfterHoverPause();
+                    hoverResumeTimer.restart();
                 }
                 else if (MementoSettings.searchPauseOnHover)
                 {
+                    hoverResumeTimer.stop();
                     /* Only a pause started here may be resumed automatically */
                     if (!root.state.pause)
                     {
