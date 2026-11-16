@@ -39,6 +39,7 @@ set_source_files_properties(
     qml/objects/AudioSourceResolver.qml
     qml/util/AnkiMarkers.qml
     qml/util/MementoPalette.qml
+    qml/util/PopupPalette.qml
     qml/util/Utils.qml
     PROPERTIES
         QT_QML_SINGLETON_TYPE TRUE
@@ -86,6 +87,7 @@ qt_add_qml_module(
         qml/definition/KanjiEntry.qml
         qml/definition/KanjiValueTag.qml
         qml/definition/MetaLabel.qml
+        qml/definition/PopupLabel.qml
         qml/definition/TagLabel.qml
         qml/definition/TermEntry.qml
         qml/definition/TermGlossary.qml
@@ -107,6 +109,7 @@ qt_add_qml_module(
         qml/options/SearchPage.qml
         qml/util/AnkiMarkers.qml
         qml/util/MementoPalette.qml
+        qml/util/PopupPalette.qml
         qml/util/Utils.qml
         qml/windows/AboutWindow.qml
 )

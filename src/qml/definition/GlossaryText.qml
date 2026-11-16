@@ -498,6 +498,9 @@ SearchableText {
     }
 
     cursorShape: Qt.IBeamCursor
+    color: PopupPalette.text
+    selectionColor: PopupPalette.highlight
+    selectedTextColor: PopupPalette.highlightedText
     textFormat: TextEdit.RichText
     wrapMode: TextEdit.Wrap
     selectByMouse: true

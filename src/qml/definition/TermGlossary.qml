@@ -12,12 +12,22 @@ ColumnLayout {
 
     readonly property string selectedText: glossaryText.ankiSelectedText
 
+    /* 1, 2, 3... when the term has several definitions; 0 = no number */
+    property int number: 0
+
     signal searchRequested(query: string)
 
     CenteredFlow {
         Layout.fillWidth: true
 
         spacing: 5
+
+        Label {
+            visible: root.number > 0
+            text: root.number + "."
+            color: PopupPalette.dimText
+            font.bold: true
+        }
 
         CheckBox {
             id: checkBox

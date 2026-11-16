@@ -7,7 +7,7 @@ ListView {
     id: root
 
     required property DictionarySearch dictionarySearch
-    property color canvasColor: MementoPalette.window
+    property color canvasColor: PopupPalette.window
 
     readonly property var terms: dictionarySearch.terms
     readonly property Kanji kanji: dictionarySearch.kanji
@@ -191,7 +191,7 @@ ListView {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 1
-            color: MementoPalette.border
+            color: PopupPalette.border
             visible: termLayout.index < root.count - 1 || root.kanji
         }
     }

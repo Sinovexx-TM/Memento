@@ -8,7 +8,7 @@ RowLayout {
 
     required property Tag tag
 
-    SelectableLabel {
+    PopupLabel {
         Layout.fillWidth: true
         wrapMode: TextEdit.WordWrap
         font.family: MementoSettings.interfaceSearchGlossaryFont.family
@@ -17,7 +17,7 @@ RowLayout {
         text: root.tag?.notes
     }
 
-    SelectableLabel {
+    PopupLabel {
         wrapMode: Text.WordWrap
         font.family: MementoSettings.interfaceSearchGlossaryFont.family
         font.pointSize: MementoSettings.interfaceSearchGlossaryFont.pointSize

@@ -16,6 +16,26 @@ Page {
 
     signal closePressed()
 
+    /* Dark, Yomitan-style colours for everything in the results */
+    palette.window: PopupPalette.window
+    palette.windowText: PopupPalette.text
+    palette.base: PopupPalette.base
+    palette.alternateBase: PopupPalette.alternate
+    palette.text: PopupPalette.text
+    palette.button: PopupPalette.button
+    palette.buttonText: PopupPalette.text
+    palette.highlight: PopupPalette.highlight
+    palette.highlightedText: PopupPalette.highlightedText
+    palette.placeholderText: PopupPalette.dimText
+    palette.light: "#3a3a3a"
+    palette.midlight: "#333333"
+    palette.mid: "#4a4a4a"
+    palette.dark: "#141414"
+
+    background: Rectangle {
+        color: PopupPalette.window
+    }
+
     Action {
         id: addAnkiAction
         enabled: AnkiConfig.enabled &&
@@ -154,6 +174,9 @@ Page {
             id: toolbar
             Layout.fillWidth: true
             visible: root.showToolbar || stackView.depth > 1
+            background: Rectangle {
+                color: PopupPalette.window
+            }
 
             RowLayout {
                 anchors.fill: parent
@@ -163,7 +186,7 @@ Page {
                     focusPolicy: Qt.NoFocus
                     visible: stackView.depth > 1
                     icon.name: MementoSettings.interfaceSystemIcons ? "go-previous" : null
-                    icon.source: Utils.toImageProvider("arrow-back", MementoPalette.text)
+                    icon.source: Utils.toImageProvider("arrow-back", PopupPalette.text)
                     onClicked: stackView.pop()
                 }
 
@@ -175,7 +198,7 @@ Page {
                     id: buttonClose
                     focusPolicy: Qt.NoFocus
                     icon.name: MementoSettings.interfaceSystemIcons ? "window-close" : null
-                    icon.source: Utils.toImageProvider("close", MementoPalette.text)
+                    icon.source: Utils.toImageProvider("close", PopupPalette.text)
                     onClicked: root.closePressed()
                 }
             }
@@ -183,9 +206,9 @@ Page {
 
         Rectangle {
             Layout.fillWidth: true
-            visible: !Features.isUnix && toolbar.visible
+            visible: toolbar.visible
             implicitHeight: 1
-            color: MementoPalette.border
+            color: PopupPalette.border
         }
     }
 

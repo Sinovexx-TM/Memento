@@ -208,7 +208,7 @@ Item {
                 Layout.alignment: Qt.AlignLeft
                 spacing: 0
 
-                SelectableLabel {
+                PopupLabel {
                     Layout.alignment: Qt.AlignHCenter
                     visible: text.length > 0
 
@@ -276,7 +276,7 @@ Item {
                             }
                             return !root.term.addableExpression || !root.term.addableReading;
                         }
-                        icon.source: Utils.toImageProvider("note-stack", MementoPalette.text)
+                        icon.source: Utils.toImageProvider("note-stack", PopupPalette.text)
                         onClicked: AnkiClient.openDuplicates(root.term).then(function(result) {
                             if (result.success)
                             {
@@ -300,7 +300,7 @@ Item {
                                  !root.term.ankiAdding &&
                                  root.term.addableExpression &&
                                  root.term.addableReading
-                        icon.source: Utils.toImageProvider(root.term?.readingAsExpression ? "kana" : "kanji", MementoPalette.text)
+                        icon.source: Utils.toImageProvider(root.term?.readingAsExpression ? "kana" : "kanji", PopupPalette.text)
                         onClicked: {
                             if (root.term)
                             {
@@ -320,7 +320,7 @@ Item {
                                  root.term &&
                                  !root.term.ankiAdding
                         icon.name: MementoSettings.interfaceSystemIcons ? "list-add" : null
-                        icon.source: Utils.toImageProvider("add", MementoPalette.text)
+                        icon.source: Utils.toImageProvider("add", PopupPalette.text)
 
                         onClicked: {
                             const audioSource = audioFiles.files.length > 0 ?
@@ -342,7 +342,7 @@ Item {
                                 delegate: MenuItem {
                                     text: modelData.name
                                     enabled: modelData.exists
-                                    icon.source: Utils.toImageProvider(modelData.exists ? "volume-on" : "volume-off", MementoPalette.text)
+                                    icon.source: Utils.toImageProvider(modelData.exists ? "volume-on" : "volume-off", PopupPalette.text)
                                     onTriggered: {
                                         root.term.audioSourceName = modelData.name;
                                         root.term.audioUrl = modelData.url;
@@ -400,9 +400,9 @@ Item {
                             if (audioFiles.loadState !== AudioFiles.Loaded ||
                                     (audioFiles.files.length > 0 && audioFiles.files[0].exists))
                             {
-                                return Utils.toImageProvider("volume-on", MementoPalette.text);
+                                return Utils.toImageProvider("volume-on", PopupPalette.text);
                             }
-                            return Utils.toImageProvider("volume-off", MementoPalette.text);
+                            return Utils.toImageProvider("volume-off", PopupPalette.text);
                         }
 
                         onClicked: {
@@ -423,7 +423,7 @@ Item {
                                 delegate: MenuItem {
                                     text: modelData.name
                                     enabled: modelData.exists
-                                    icon.source: Utils.toImageProvider(modelData.exists ? "volume-on" : "volume-off", MementoPalette.text)
+                                    icon.source: Utils.toImageProvider(modelData.exists ? "volume-on" : "volume-off", PopupPalette.text)
                                     onTriggered: {
                                         audioButton.play(modelData);
                                     }
@@ -440,7 +440,7 @@ Item {
                         focusPolicy: Qt.NoFocus
                         visible: !root.term?.collapsed ?? false
                         icon.name: MementoSettings.interfaceSystemIcons ? "go-down" : null
-                        icon.source: Utils.toImageProvider("arrow-drop-down", MementoPalette.text)
+                        icon.source: Utils.toImageProvider("arrow-drop-down", PopupPalette.text)
                         onClicked: if (root.term) root.term.collapsed = true
                     }
 
@@ -449,12 +449,12 @@ Item {
                         focusPolicy: Qt.NoFocus
                         visible: root.term?.collapsed ?? false
                         icon.name: MementoSettings.interfaceSystemIcons ? "go-up" : null
-                        icon.source: Utils.toImageProvider("arrow-drop-up", MementoPalette.text)
+                        icon.source: Utils.toImageProvider("arrow-drop-up", PopupPalette.text)
                         onClicked: if (root.term) root.term.collapsed = false
                     }
                 }
 
-                SelectableLabel {
+                PopupLabel {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignLeft
                     wrapMode: TextEdit.WordWrap
@@ -534,6 +534,7 @@ Item {
                 required property int index
                 term: root.term
                 definition: root.term?.definitions[index]
+                number: glossaryRepeater.count > 1 ? index + 1 : 0
                 canvasColor: root.canvasColor
                 visible: !root.term?.collapsed
 

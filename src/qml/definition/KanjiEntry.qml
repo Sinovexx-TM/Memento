@@ -112,7 +112,7 @@ Item {
         anchors.margins: 10
 
         RowLayout {
-            SelectableLabel {
+            PopupLabel {
                 font.family: MementoSettings.interfaceSearchKanjiFont.family
                 font.italic: MementoSettings.interfaceSearchKanjiFont.italic
                 font.underline: MementoSettings.interfaceSearchKanjiFont.underline
@@ -142,7 +142,7 @@ Item {
                          root.kanji &&
                          root.kanji.ankiChecked &&
                          !root.kanji.addable
-                icon.source: Utils.toImageProvider("note-stack", MementoPalette.text)
+                icon.source: Utils.toImageProvider("note-stack", PopupPalette.text)
                 onClicked: AnkiClient.openDuplicates(root.kanji).then(function(result) {
                     if (result.success)
                     {
@@ -164,7 +164,7 @@ Item {
                          root.kanji.addable
                 enabled: root.kanji && !root.kanji.ankiAdding
                 icon.name: MementoSettings.interfaceSystemIcons ? "list-add" : null
-                icon.source: Utils.toImageProvider("add", MementoPalette.text)
+                icon.source: Utils.toImageProvider("add", PopupPalette.text)
                 onClicked: root.addKanji()
             }
         }
@@ -220,24 +220,24 @@ Item {
                         Layout.fillWidth: true
                         Layout.columnSpan: parent.columns
                         implicitHeight: 1
-                        color: MementoPalette.border
+                        color: PopupPalette.border
                     }
 
-                    SelectableLabel {
+                    PopupLabel {
                         font.family: MementoSettings.interfaceSearchGlossaryFont.family
                         font.pointSize: MementoSettings.interfaceSearchGlossaryFont.pointSize
                         font.bold: true
                         text: qsTr("Glossary")
                     }
 
-                    SelectableLabel {
+                    PopupLabel {
                         font.family: MementoSettings.interfaceSearchGlossaryFont.family
                         font.pointSize: MementoSettings.interfaceSearchGlossaryFont.pointSize
                         font.bold: true
                         text: qsTr("Reading")
                     }
 
-                    SelectableLabel {
+                    PopupLabel {
                         font.family: MementoSettings.interfaceSearchGlossaryFont.family
                         font.pointSize: MementoSettings.interfaceSearchGlossaryFont.pointSize
                         font.bold: true
@@ -248,10 +248,10 @@ Item {
                         Layout.fillWidth: true
                         Layout.columnSpan: parent.columns
                         implicitHeight: 1
-                        color: MementoPalette.border
+                        color: PopupPalette.border
                     }
 
-                    SelectableLabel {
+                    PopupLabel {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignTop
                         wrapMode: TextEdit.Wrap
@@ -268,7 +268,7 @@ Item {
                         }
                     }
 
-                    SelectableLabel {
+                    PopupLabel {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignTop
                         wrapMode: TextEdit.Wrap
@@ -301,10 +301,10 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 1
-                    color: MementoPalette.border
+                    color: PopupPalette.border
                 }
 
-                SelectableLabel {
+                PopupLabel {
                     Layout.fillWidth: true
                     font.family: MementoSettings.interfaceSearchGlossaryFont.family
                     font.pointSize: MementoSettings.interfaceSearchGlossaryFont.pointSize
@@ -315,7 +315,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 1
-                    color: MementoPalette.border
+                    color: PopupPalette.border
                 }
 
                 Repeater {
@@ -330,10 +330,10 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 1
-                    color: MementoPalette.border
+                    color: PopupPalette.border
                 }
 
-                SelectableLabel {
+                PopupLabel {
                     Layout.fillWidth: true
                     font.family: MementoSettings.interfaceSearchGlossaryFont.family
                     font.pointSize: MementoSettings.interfaceSearchGlossaryFont.pointSize
@@ -344,7 +344,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 1
-                    color: MementoPalette.border
+                    color: PopupPalette.border
                 }
 
                 Repeater {
@@ -359,10 +359,10 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 1
-                    color: MementoPalette.border
+                    color: PopupPalette.border
                 }
 
-                SelectableLabel {
+                PopupLabel {
                     Layout.fillWidth: true
                     font.family: MementoSettings.interfaceSearchGlossaryFont.family
                     font.pointSize: MementoSettings.interfaceSearchGlossaryFont.pointSize
@@ -373,7 +373,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 1
-                    color: MementoPalette.border
+                    color: PopupPalette.border
                 }
 
                 Repeater {

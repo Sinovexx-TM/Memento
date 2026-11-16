@@ -21,7 +21,7 @@ ColumnLayout {
                 color: "#6640be"
             }
 
-            SelectableLabel {
+            PopupLabel {
                 id: pitchLabel
 
                 font.family: MementoSettings.interfaceSearchGlossaryFont.family

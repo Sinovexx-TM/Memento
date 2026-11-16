@@ -1,7 +1,7 @@
 import QtQuick
 import Ripose.Memento
 
-SelectableLabel {
+PopupLabel {
     id: root
 
     property string expression: ""

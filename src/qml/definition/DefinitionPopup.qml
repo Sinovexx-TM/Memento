@@ -32,6 +32,12 @@ Popup {
         dictionarySearch.clearResults();
     }
 
+    padding: 0
+    background: Rectangle {
+        color: PopupPalette.window
+        radius: 4
+    }
+
     onShouldOpenChanged: root.shouldOpen ? root.open() : root.close()
     onClosed: root.clearResults()
 
@@ -39,8 +45,8 @@ Popup {
         id: borderRectangle
         anchors.fill: parent
         color: "transparent"
-        border.color: MementoPalette.border
-        border.width: Features.isUnix ? 1 : 0
+        border.color: PopupPalette.border
+        border.width: 1
 
         DefinitionPage {
             id: definitionPage

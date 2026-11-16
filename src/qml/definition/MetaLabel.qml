@@ -14,7 +14,7 @@ Rectangle {
     height: tagLabel.contentHeight + tagLabel.anchors.topMargin + tagLabel.anchors.bottomMargin
     width: tagLabel.contentWidth + tagLabel.anchors.leftMargin + tagLabel.anchors.rightMargin
 
-    radius: 3
+    radius: 4
 
     MouseArea {
         id: mouseArea
@@ -28,7 +28,7 @@ Rectangle {
         id: hoverHandler
     }
 
-    SelectableLabel {
+    PopupLabel {
         id: tagLabel
         anchors {
             fill: parent

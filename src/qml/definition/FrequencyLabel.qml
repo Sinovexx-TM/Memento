@@ -1,15 +1,25 @@
 import QtQuick
 import Ripose.Memento
 
-MetaLabel {
+/* Two-part frequency pill: dictionary name, then the value */
+Row {
     id: root
 
-    property string name: root.frequency?.dictionaryInfo?.name ?? ""
-    property string value: root.frequency?.frequency ?? ""
+    property string name: ""
+    property string value: ""
 
-    textFormat: TextEdit.RichText
-    text: root.name.length > 0 ?
-              `${root.name} <font color='black'>${root.value}</font>` :
-              `<font color='black'>${root.value}</font>`
-    color: "#5cb85c"
+    spacing: 0
+
+    MetaLabel {
+        visible: root.name.length > 0
+        text: root.name
+        tip: ""
+        color: "#5cb85c"
+    }
+
+    MetaLabel {
+        text: root.value
+        tip: ""
+        color: PopupPalette.frequencyValue
+    }
 }
