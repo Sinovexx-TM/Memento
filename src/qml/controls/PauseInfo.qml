@@ -19,6 +19,9 @@ Item {
     /* The subtitle text item, to stay clear of it */
     required property Item subtitleItem
 
+    /* Height of the bottom controls (from the red playbar down) */
+    property real bottomBarHeight: 0
+
     /* True while the cursor is on the subtitles or a popup is open */
     property bool blocked: false
 
@@ -108,6 +111,27 @@ Item {
                 GradientStop { position: 0.6; color: "transparent" }
             }
         }
+    }
+
+    /*
+     * At the bottom only the strip from the red playbar down is dimmed; it is
+     * cut short so it never reaches the subtitles.
+     */
+    Rectangle {
+        anchors {
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+        }
+        height: {
+            let h = root.bottomBarHeight;
+            if (root.subtitleItem.visible)
+            {
+                h = Math.min(h, root.height - (root.subtitleItem.y + root.subtitleItem.height));
+            }
+            return Math.max(0, h);
+        }
+        color: Qt.rgba(0.043, 0.047, 0.055, 0.70)
     }
 
     Column {

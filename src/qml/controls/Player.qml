@@ -607,6 +607,7 @@ MpvPlayer {
         id: pauseInfo
         player: root
         subtitleItem: subtitleText
+        bottomBarHeight: controls.height
         blocked: subtitleHover.hovered ||
                  subtitleText.hoverIndex !== -1 ||
                  definitionPopup.visible
