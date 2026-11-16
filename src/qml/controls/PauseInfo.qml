@@ -33,7 +33,7 @@ Item {
         if (!path || /^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(path)) {
             return "";
         }
-        const parts = path.split(/[\/]/);
+        const parts = path.split(/[\\/]/);
         return parts[parts.length - 1];
     }
 
