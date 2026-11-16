@@ -701,6 +701,12 @@ void Settings::loadSearchSettings()
             Keys::Search::RESUME_ON_HOVER_EXIT_DEFAULT
         ).toBool()
     );
+    setSearchEpisodeInfo(
+        s.value(
+            Keys::Search::EPISODE_INFO,
+            Keys::Search::EPISODE_INFO_DEFAULT
+        ).toBool()
+    );
     setSearchCardBuilder(
         s.value(
             Keys::Search::CARD_BUILDER,
@@ -803,6 +809,10 @@ void Settings::writeSearchSettings()
         searchResumeOnHoverExit()
     );
     s.setValue(
+        Keys::Search::EPISODE_INFO,
+        searchEpisodeInfo()
+    );
+    s.setValue(
         Keys::Search::CARD_BUILDER,
         searchCardBuilder()
     );
@@ -851,6 +861,7 @@ void Settings::defaultSearchSettings()
     setSearchHideSubs();
     setSearchPauseOnHover();
     setSearchResumeOnHoverExit();
+    setSearchEpisodeInfo();
     setSearchCardBuilder();
     setSearchAutoPlayAudio();
     setSearchGlossaryStyle();
@@ -2114,6 +2125,21 @@ void Settings::setSearchResumeOnHoverExit(bool value)
     }
     m_search.resumeOnHoverExit = value;
     emit searchResumeOnHoverExitChanged(m_search.resumeOnHoverExit);
+}
+
+bool Settings::searchEpisodeInfo() const noexcept
+{
+    return m_search.episodeInfo;
+}
+
+void Settings::setSearchEpisodeInfo(bool value)
+{
+    if (m_search.episodeInfo == value)
+    {
+        return;
+    }
+    m_search.episodeInfo = value;
+    emit searchEpisodeInfoChanged(m_search.episodeInfo);
 }
 
 bool Settings::searchCardBuilder() const noexcept

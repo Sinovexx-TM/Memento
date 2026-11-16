@@ -54,12 +54,14 @@ qt_add_qml_module(
         qml/controls/CenteredFlow.qml
         qml/controls/KeybindCommand.qml
         qml/controls/ManualSearchPage.qml
+        qml/controls/PauseInfo.qml
         qml/controls/Player.qml
         qml/controls/PlayerControls.qml
         qml/controls/PlayerMenu.qml
         qml/controls/PlayerOcrOverlay.qml
         qml/controls/PlayerSlider.qml
         qml/controls/PlayerThumbnail.qml
+        qml/controls/PlayerTitle.qml
         qml/controls/SearchableText.qml
         qml/controls/SelectableLabel.qml
         qml/controls/SettingsBox.qml

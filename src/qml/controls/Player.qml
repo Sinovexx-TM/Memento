@@ -299,7 +299,11 @@ MpvPlayer {
         cursorPosition: root.cursorPosition
         onMouseMoved: {
             interactiveTimer.restart();
-            if (!root.oscVisible)
+            /* Moving over the subtitles (to look words up) must not bring
+             * the controls or the title up */
+            if (!root.oscVisible &&
+                    !subtitleHover.hovered &&
+                    subtitleText.hoverIndex === -1)
             {
                 root.showOsc();
             }
@@ -598,6 +602,15 @@ MpvPlayer {
         }
     }
 
+    PauseInfo {
+        id: pauseInfo
+        player: root
+        subtitleItem: subtitleText
+        blocked: subtitleHover.hovered ||
+                 subtitleText.hoverIndex !== -1 ||
+                 definitionPopup.visible
+    }
+
     SubtitleText {
         id: subtitleText
 
@@ -769,6 +782,18 @@ MpvPlayer {
                 }
             }
         }
+    }
+
+    PlayerTitle {
+        id: playerTitle
+        anchors {
+            left: parent.left
+            right: parent.right
+            top: parent.top
+        }
+        player: root
+        controls: controls
+        menu: menu
     }
 
     PlayerMenu {

@@ -105,6 +105,23 @@ Page {
                         Label {
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignLeft
+                            text: qsTr("Show the show and episode name with the controls, and when paused")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            checked: MementoSettings.searchEpisodeInfo
+                            onClicked: MementoSettings.searchEpisodeInfo = checked
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
                             text: qsTr("Show the card builder before adding a card to Anki")
                         }
                         Switch {

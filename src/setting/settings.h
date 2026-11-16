@@ -287,6 +287,13 @@ class Settings : public QObject
     )
 
     Q_PROPERTY(
+        bool searchEpisodeInfo
+        READ searchEpisodeInfo
+        WRITE setSearchEpisodeInfo
+        NOTIFY searchEpisodeInfoChanged
+    )
+
+    Q_PROPERTY(
         bool searchCardBuilder
         READ searchCardBuilder
         WRITE setSearchCardBuilder
@@ -1339,6 +1346,22 @@ public:
         bool value = Keys::Search::RESUME_ON_HOVER_EXIT_DEFAULT);
 
     /**
+     * @brief Shows the show/episode title with the controls and when paused.
+     *
+     * @return true to show the episode info, false otherwise.
+     */
+    [[nodiscard]]
+    bool searchEpisodeInfo() const noexcept;
+
+    /**
+     * @brief Sets whether the episode info is shown.
+     *
+     * @param value true to show the episode info, false otherwise.
+     */
+    void setSearchEpisodeInfo(
+        bool value = Keys::Search::EPISODE_INFO_DEFAULT);
+
+    /**
      * @brief Opens the card builder dialog before adding a term to Anki.
      *
      * @return true to show the card builder, false to add directly.
@@ -2244,6 +2267,13 @@ signals:
     void searchResumeOnHoverExitChanged(bool value);
 
     /**
+     * @brief Emitted when the search episode info setting is changed.
+     *
+     * @param value The new value.
+     */
+    void searchEpisodeInfoChanged(bool value);
+
+    /**
      * @brief Emitted when the search card builder setting is changed.
      *
      * @param value The new value.
@@ -2707,6 +2737,9 @@ private:
 
         /* true to resume playback when leaving the subtitles after a hover pause */
         bool resumeOnHoverExit{Keys::Search::RESUME_ON_HOVER_EXIT_DEFAULT};
+
+        /* true to show the show/episode title and pause screen */
+        bool episodeInfo{Keys::Search::EPISODE_INFO_DEFAULT};
 
         /* true to show the card builder dialog before adding a card */
         bool cardBuilder{Keys::Search::CARD_BUILDER_DEFAULT};

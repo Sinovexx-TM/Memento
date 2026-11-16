@@ -136,4 +136,134 @@ QtObject {
         }
         return freqs;
     }
+
+    /**
+     * Cleans separators and stray characters in a name fragment.
+     */
+    function cleanMediaText(s) {
+        s = s.replace(/_/g, " ");
+        if (s.trim().indexOf(" ") === -1) {
+            s = s.replace(/\./g, " ");
+        }
+        return s.replace(/\s+/g, " ").replace(/^[ \-._]+|[ \-._]+$/g, "");
+    }
+
+    /**
+     * Splits one file name (no folder) into a show name and an episode label.
+     * Brackets and parentheses are dropped first. Port of a tested prototype.
+     * @return {title, episode}; episode is "" when none was found.
+     */
+    function parseMediaFileName(name) {
+        const tags = /\b(\d{3,4}p|\d{3,4}x\d{3,4}|x26[45]|h\.?26[45]|hevc|av1|avc|aac|flac|opus|ac3|eac3|dts|10bit|8bit|web[- ]?dl|web[- ]?rip|bd[- ]?rip|blu[- ]?ray|bd|dvd|dvdrip|hdtv|raw|multi[- ]?subs?|dual[- ]?audio|repack|proper|batch|uncensored|nf|amzn|cr|crunchyroll)\b/gi;
+        const plain = name.replace(/\.[A-Za-z0-9]{2,4}$/, "");
+        let s = plain.replace(/\[[^\]]*\]|\([^)]*\)|\{[^}]*\}|【[^】]*】/g, " ");
+        s = Utils.cleanMediaText(s);
+
+        const patterns = [
+            [/^(.*?)[ ._-]*\bS(\d{1,2})[ ._-]*E(\d{1,3})\b/i, "se"],
+            [/^(.*?)[ ._-]*\b(\d{1,2})x(\d{2,3})\b/i, "se"],
+            [/^(.*?)[ ._-]*\bSeason[ ._]?(\d{1,2})[ ._-]*(?:Episode|Ep|E)?[ ._]*(\d{1,3})\b/i, "se"],
+            [/^(.*?)[ ._-]*\b(?:Episode|Ep|E)[ ._]*(\d{1,3})\b/i, "e"],
+            [/^(.*?)[ ._-]*第\s*(\d{1,3})\s*[話话回]/i, "e"],
+            [/^(.*?)[ ._-]*#\s*(\d{1,3})\b/i, "e"],
+            [/^(.*?)\s+-\s+(\d{1,3})(?:v\d)?(?:\s|$)/i, "e"]
+        ];
+
+        let show = null;
+        let season = null;
+        let episode = null;
+        for (let i = 0; i < patterns.length; ++i) {
+            const m = s.match(patterns[i][0]);
+            if (m && m[1].trim().length > 0) {
+                show = m[1];
+                if (patterns[i][1] === "se") {
+                    season = parseInt(m[2]);
+                    episode = parseInt(m[3]);
+                } else {
+                    episode = parseInt(m[2]);
+                }
+                break;
+            }
+        }
+        if (show === null) {
+            const m = s.match(/^(.*\D)\s+(\d{1,3})$/);
+            if (m && m[1].trim().length > 0) {
+                show = m[1];
+                episode = parseInt(m[2]);
+            }
+        }
+        if (show === null) {
+            show = s;
+        }
+
+        show = Utils.cleanMediaText(show.replace(tags, " "));
+        if (show.length === 0) {
+            return { title: plain, episode: "" };
+        }
+        let label = "";
+        if (episode !== null) {
+            label = season !== null
+                ? qsTr("Season %1 · Episode %2").arg(season).arg(episode)
+                : qsTr("Episode %1").arg(episode);
+        }
+        return { title: show, episode: label };
+    }
+
+    /**
+     * Works out what to show for the playing media.
+     * Files named only by a number or tag ("01.mkv", "PV2.mkv") take the show
+     * name from their folder. Streams use mpv's own title.
+     *
+     * @param path The full path or URL of the media.
+     * @param mediaTitle mpv's media title (used for streams).
+     * @return {title, episode}
+     */
+    function parseMediaInfo(path, mediaTitle) {
+        if (!path || path.length === 0) {
+            return { title: mediaTitle ?? "", episode: "" };
+        }
+        if (/^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(path) && !/^file:/i.test(path)) {
+            return { title: mediaTitle && mediaTitle.length > 0 ? mediaTitle : path, episode: "" };
+        }
+
+        const parts = path.split(/[\\/]/).filter(p => p.length > 0);
+        const name = parts.length > 0 ? parts[parts.length - 1] : path;
+        const base = name.replace(/\.[A-Za-z0-9]{2,4}$/, "").trim();
+        let r = Utils.parseMediaFileName(name);
+
+        /* Episode written as a lone bracket group: "Show [03][1080p]" */
+        if (r.episode.length === 0) {
+            const m = name.match(/\[(\d{1,3})(?:v\d)?\]/);
+            if (m) {
+                r.episode = qsTr("Episode %1").arg(parseInt(m[1]));
+            }
+        }
+
+        /* Extras: "Show - SP1", "Show - ED", or a bracket like [Drama05] */
+        if (r.episode.length === 0) {
+            let m = r.title.match(/^(.*?)\s+-\s+((?:NC)?(?:SP|OP|ED|OVA|ONA|PV|CM|Special)\d*)$/i);
+            if (m && m[1].trim().length > 0) {
+                r = { title: m[1].trim(), episode: m[2] };
+            } else {
+                m = name.match(/\[([A-Za-z]{2,8}\d{1,3})\]/);
+                if (m) {
+                    r.episode = m[1];
+                }
+            }
+        }
+
+        /* Bare file names: the show is the parent folder */
+        const bare = base.match(/^(\d{1,3})$/);
+        const shortName = base.match(/^[A-Za-z]{1,6}\d{0,2}$/);
+        if ((bare || shortName) && parts.length >= 2) {
+            const folder = Utils.parseMediaFileName(parts[parts.length - 2]).title;
+            if (folder.length > 0) {
+                return {
+                    title: folder,
+                    episode: bare ? qsTr("Episode %1").arg(parseInt(base)) : base
+                };
+            }
+        }
+        return r;
+    }
 }
