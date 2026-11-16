@@ -176,10 +176,30 @@ Dialog {
         root.selEnd = Math.min(root.windowStart + root.windowLength, Math.max(time, root.selStart + root.minLength));
     }
 
+    /* Video time of the moving playhead, or -1 when nothing is playing */
+    property real playPos: -1
+
+    function stopPlayhead() {
+        playheadAnimation.stop();
+        root.playPos = -1;
+    }
+
+    function startPlayhead(from, to) {
+        playheadAnimation.stop();
+        root.playPos = from;
+        playheadAnimation.from = from;
+        playheadAnimation.to = to;
+        playheadAnimation.duration = Math.max(1, (to - from) * 1000);
+        playheadAnimation.start();
+    }
+
     function playRange() {
-        AnkiClient.cardBuilderClip(root.selStart, root.selEnd, 1).then(function(result) {
+        const from = root.selStart;
+        const to = root.selEnd;
+        AnkiClient.cardBuilderClip(from, to, 1).then(function(result) {
             if (result.success) {
                 AudioPlayer.play(result.url);
+                root.startPlayhead(from, to);
             }
         });
     }
@@ -187,7 +207,16 @@ Dialog {
     function playFull() {
         if (root.clipUrl.length > 0) {
             AudioPlayer.play(root.clipUrl);
+            root.startPlayhead(root.windowStart, root.windowStart + root.windowLength);
         }
+    }
+
+    NumberAnimation {
+        id: playheadAnimation
+        target: root
+        property: "playPos"
+        easing.type: Easing.Linear
+        onFinished: root.playPos = -1
     }
 
     parent: Overlay.overlay
@@ -199,6 +228,7 @@ Dialog {
 
     onAccepted: AnkiClient.setCardBuilderOverride(sentenceArea.text, root.selStart, root.selEnd)
     onRejected: AnkiClient.clearCardBuilderOverride()
+    onClosed: root.stopPlayhead()
 
     /* GSM-like look: field names on the left, fields on the right */
     readonly property color accent: "#4a8fe0"
@@ -378,6 +408,15 @@ Dialog {
                                 color: root.accent
                             }
                         }
+                    }
+
+                    /* Moving playhead while audio plays */
+                    Rectangle {
+                        visible: root.playPos >= 0
+                        x: root.timeToX(root.playPos) - width / 2
+                        width: 2
+                        height: parent.height
+                        color: "white"
                     }
 
                     Label {
