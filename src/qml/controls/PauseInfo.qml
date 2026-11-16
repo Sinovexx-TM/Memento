@@ -8,7 +8,7 @@ import Ripose.Memento
  *
  * Never shown for a pause started by hovering the subtitles (word lookups),
  * while the cursor is on the subtitles, or while a dictionary popup is open.
- * It sits below the subtitles and is kept above them, so the subtitles win.
+ * It sits below the subtitles and its dim ends above them, so the subtitles win.
  */
 Item {
     id: root
@@ -76,10 +76,38 @@ Item {
         }
     }
 
-    Rectangle {
-        anchors.fill: parent
-        color: "#0b0c0e"
-        opacity: 0.78
+    /*
+     * The dim stops above the subtitles and fades out before them, so no
+     * subtitle (Memento's or mpv's own) is ever darkened. Darkest top-left,
+     * where the text is.
+     */
+    Item {
+        id: dim
+        anchors {
+            left: parent.left
+            right: parent.right
+            top: parent.top
+        }
+        /* Memento's subtitles hidden: mpv may draw its own at the bottom */
+        height: Math.max(0, root.subtitleItem.visible ? root.limit : root.height * 0.7)
+
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(0.043, 0.047, 0.055, 0.70) }
+                GradientStop { position: 0.70; color: Qt.rgba(0.043, 0.047, 0.055, 0.55) }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.rgba(0.043, 0.047, 0.055, 0.45) }
+                GradientStop { position: 0.6; color: "transparent" }
+            }
+        }
     }
 
     Column {
