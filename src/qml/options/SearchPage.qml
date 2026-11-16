@@ -99,6 +99,23 @@ Page {
 
                     SettingsBoxSeparator {
                         Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            text: qsTr("Show the card builder before adding a card to Anki")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            checked: MementoSettings.searchCardBuilder
+                            onClicked: MementoSettings.searchCardBuilder = checked
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
                         visible: Features.mecab
                     }
 

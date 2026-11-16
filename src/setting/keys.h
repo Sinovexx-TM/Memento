@@ -238,6 +238,9 @@ namespace Keys
         constexpr const char *RESUME_ON_HOVER_EXIT = "hover-resume";
         constexpr bool RESUME_ON_HOVER_EXIT_DEFAULT = true;
 
+        constexpr const char *CARD_BUILDER = "card-builder";
+        constexpr bool CARD_BUILDER_DEFAULT = true;
+
         constexpr const char *AUTO_PLAY_AUDIO = "auto-play-audio";
         constexpr bool AUTO_PLAY_AUDIO_DEFAULT = false;
 

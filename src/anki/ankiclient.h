@@ -345,6 +345,75 @@ public:
     [[nodiscard]]
     QCoro::Task<QVariantMap> openDuplicatesAsync(const Kanji *kanji);
 
+    /**
+     * @brief Describes the subtitle lines the card builder starts from.
+     *
+     * @return A QVariantMap with properties.
+     * @return available: true if the subtitle list has the current line.
+     * @return first: Row of the first line (selection start or current line).
+     * @return last: Row of the last line.
+     * @return count: Number of rows in the subtitle list.
+     * @return padStart: Audio start padding of the current Anki profile.
+     * @return padEnd: Audio end padding of the current Anki profile.
+     */
+    [[nodiscard]]
+    Q_INVOKABLE QVariantMap cardBuilderStart() const;
+
+    /**
+     * @brief Gets one line of the primary subtitle list.
+     *
+     * @param row The row in the list.
+     * @return A QVariantMap with text, start and end (seconds, delay
+     * included), or an empty map if the row does not exist.
+     */
+    [[nodiscard]]
+    Q_INVOKABLE QVariantMap cardBuilderLine(int row) const;
+
+    /**
+     * @brief Cuts a WAV clip of the current video and reads its waveform.
+     *
+     * @param start Start time in seconds.
+     * @param end End time in seconds.
+     * @param bins Number of waveform bars wanted.
+     * @return A QVariantMap with properties.
+     * @return success: true on success, false on error.
+     * @return url: file:// URL of the clip.
+     * @return start: Start time actually used (clamped to 0).
+     * @return duration: Length of the clip in seconds.
+     * @return peaks: A QVariantList of bars between 0 and 1.
+     */
+    [[nodiscard]]
+    Q_INVOKABLE QCoro::QmlTask cardBuilderClip(
+        double start, double end, int bins);
+
+    /**
+     * @brief Cuts a WAV clip of the current video and reads its waveform.
+     *
+     * @param start Start time in seconds.
+     * @param end End time in seconds.
+     * @param bins Number of waveform bars wanted.
+     * @return See cardBuilderClip.
+     */
+    [[nodiscard]]
+    QCoro::Task<QVariantMap> cardBuilderClipAsync(
+        double start, double end, int bins);
+
+    /**
+     * @brief Sets the sentence and audio range used by the next addNote of a
+     * term.
+     *
+     * @param text The sentence (lines joined with newlines).
+     * @param start Final audio start in seconds (no padding added).
+     * @param end Final audio end in seconds (no padding added).
+     */
+    Q_INVOKABLE void setCardBuilderOverride(
+        const QString &text, double start, double end);
+
+    /**
+     * @brief Clears the override and deletes the clips made for the dialog.
+     */
+    Q_INVOKABLE void clearCardBuilderOverride();
+
 signals:
     /**
      * @brief Emitted when the context is changed.
@@ -492,6 +561,14 @@ private:
      */
     void populate(Expression *expression) const;
 
+    /**
+     * @brief Applies the card builder sentence and audio range to a term.
+     *
+     * @param term The term about to be added.
+     * @param profile The Anki profile in use (for the audio padding).
+     */
+    void applyCardBuilderOverride(Term *term, const AnkiProfile *profile);
+
     /* The application context */
     const Context *m_context{nullptr};
 
@@ -500,4 +577,16 @@ private:
 
     /* The regular expression to filter subtitles with */
     QRegularExpression m_subtitleFilterRegex;
+
+    /* Sentence/audio range chosen in the card builder, if any */
+    struct CardBuilderOverride
+    {
+        bool active{false};
+        QString text;
+        double start{0};
+        double end{0};
+    } m_cardOverride;
+
+    /* Temporary clips made for the card builder, removed when it closes */
+    QStringList m_cardClips;
 };

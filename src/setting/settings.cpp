@@ -701,6 +701,12 @@ void Settings::loadSearchSettings()
             Keys::Search::RESUME_ON_HOVER_EXIT_DEFAULT
         ).toBool()
     );
+    setSearchCardBuilder(
+        s.value(
+            Keys::Search::CARD_BUILDER,
+            Keys::Search::CARD_BUILDER_DEFAULT
+        ).toBool()
+    );
     setSearchAutoPlayAudio(
         s.value(
             Keys::Search::AUTO_PLAY_AUDIO,
@@ -797,6 +803,10 @@ void Settings::writeSearchSettings()
         searchResumeOnHoverExit()
     );
     s.setValue(
+        Keys::Search::CARD_BUILDER,
+        searchCardBuilder()
+    );
+    s.setValue(
         Keys::Search::AUTO_PLAY_AUDIO,
         searchAutoPlayAudio()
     );
@@ -841,6 +851,7 @@ void Settings::defaultSearchSettings()
     setSearchHideSubs();
     setSearchPauseOnHover();
     setSearchResumeOnHoverExit();
+    setSearchCardBuilder();
     setSearchAutoPlayAudio();
     setSearchGlossaryStyle();
     setSearchReplaceNewlines();
@@ -2103,6 +2114,21 @@ void Settings::setSearchResumeOnHoverExit(bool value)
     }
     m_search.resumeOnHoverExit = value;
     emit searchResumeOnHoverExitChanged(m_search.resumeOnHoverExit);
+}
+
+bool Settings::searchCardBuilder() const noexcept
+{
+    return m_search.cardBuilder;
+}
+
+void Settings::setSearchCardBuilder(bool value)
+{
+    if (m_search.cardBuilder == value)
+    {
+        return;
+    }
+    m_search.cardBuilder = value;
+    emit searchCardBuilderChanged(m_search.cardBuilder);
 }
 
 bool Settings::searchAutoPlayAudio() const noexcept

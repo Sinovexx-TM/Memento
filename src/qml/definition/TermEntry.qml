@@ -57,9 +57,31 @@ Item {
     }
 
     /**
-     * Add the term to Anki.
+     * Add the term to Anki. Opens the card builder first when it is enabled
+     * and there are subtitle lines to build from.
      */
     function addTerm()
+    {
+        if (!AnkiConfig.enabled ||
+                !root.term ||
+                !root.term.ankiChecked ||
+                root.term.ankiAdding)
+        {
+            return;
+        }
+
+        if (MementoSettings.searchCardBuilder && cardBuilder.openFor(root.term))
+        {
+            return;
+        }
+
+        root.addTermNow();
+    }
+
+    /**
+     * Add the term to Anki without asking.
+     */
+    function addTermNow()
     {
         if (!AnkiConfig.enabled ||
                 !root.term ||
@@ -149,6 +171,14 @@ Item {
     }
 
     onTermChanged: root.checkTermAddable()
+
+    CardBuilderDialog {
+        id: cardBuilder
+        onAccepted: {
+            root.addTermNow();
+            AnkiClient.clearCardBuilderOverride();
+        }
+    }
 
     Dialog {
         id: errorDialog

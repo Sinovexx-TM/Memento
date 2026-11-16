@@ -71,6 +71,7 @@ qt_add_qml_module(
         qml/controls/SubtitleListTabButton.qml
         qml/controls/SubtitleText.qml
         qml/definition/DefinitionList.qml
+        qml/definition/CardBuilderDialog.qml
         qml/definition/DefinitionPage.qml
         qml/definition/DefinitionPopup.qml
         qml/definition/DictionaryLabel.qml

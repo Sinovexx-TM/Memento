@@ -34,8 +34,19 @@
 #include <qcoro/network/qcoronetworkreply.h>
 #endif // MEMENTO_SYSTEM_QCORO
 
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <vector>
+
+#include <QFile>
+#include <QUrl>
+
 #include "anki/ankiconnect.h"
+#include "player/mpvcontroller.h"
+#include "player/mpvplayer.h"
 #include "state/context.h"
+#include "subtitle/subtitlelistmodel.h"
 
 /* The minimum AnkiConnect version required */
 static constexpr int MIN_ANKICONNECT_VERSION = 6;
@@ -365,6 +376,7 @@ QCoro::Task<QVariantMap> AnkiClient::addNoteAsync(const Term *term)
     std::unique_ptr<AnkiProfile> profileCopy{profile()->clone(this)};
     std::unique_ptr<Term> termCopy{term->clone(this)};
     populate(termCopy.get());
+    applyCardBuilderOverride(termCopy.get(), profileCopy.get());
     Anki::Note::Context ctx = co_await QtConcurrent::run(
         [this, &profile = *profileCopy, &term = *termCopy]
         () -> Anki::Note::Context
@@ -1027,3 +1039,333 @@ void AnkiClient::populate(Expression *expression) const
 }
 
 /* End Expression Helpers */
+
+/* Begin Card Builder */
+
+/**
+ * Reads a PCM WAV file and returns `bins` bars (0 to 1) of its loudness.
+ */
+static QVariantList wavPeaks(const QString &path, int bins, double &duration)
+{
+    duration = 0;
+    QFile file{path};
+    if (bins <= 0 || !file.open(QIODevice::ReadOnly))
+    {
+        return {};
+    }
+    const QByteArray d = file.readAll();
+    if (d.size() < 44 || !d.startsWith("RIFF"))
+    {
+        return {};
+    }
+
+    auto u16 = [&d] (qsizetype p) -> quint32
+    {
+        return quint32(uchar(d[p])) | (quint32(uchar(d[p + 1])) << 8);
+    };
+    auto u32 = [&u16] (qsizetype p) -> quint32
+    {
+        return u16(p) | (u16(p + 2) << 16);
+    };
+
+    quint32 tag = 1;
+    quint32 channels = 1;
+    quint32 rate = 48000;
+    quint32 bits = 16;
+    qsizetype dataPos = -1;
+    qsizetype dataSize = 0;
+    qsizetype pos = 12;
+    while (pos + 8 <= d.size())
+    {
+        const QByteArray id = d.mid(pos, 4);
+        const quint32 size = u32(pos + 4);
+        pos += 8;
+        if (id == "fmt " && pos + 16 <= d.size())
+        {
+            tag = u16(pos);
+            channels = u16(pos + 2);
+            rate = u32(pos + 4);
+            bits = u16(pos + 14);
+            if (tag == 0xFFFE && size >= 26 && pos + 26 <= d.size())
+            {
+                tag = u16(pos + 24);
+            }
+        }
+        else if (id == "data")
+        {
+            const qsizetype rest = d.size() - pos;
+            dataPos = pos;
+            dataSize = (size == 0 || qsizetype(size) > rest) ? rest : qsizetype(size);
+            break;
+        }
+        pos += qsizetype(size) + (size & 1);
+    }
+
+    const quint32 bytesPerSample = bits / 8;
+    if (dataPos < 0 || channels == 0 || rate == 0 ||
+        (bytesPerSample != 1 && bytesPerSample != 2 &&
+         bytesPerSample != 3 && bytesPerSample != 4))
+    {
+        return {};
+    }
+    const qsizetype frameSize = qsizetype(channels) * bytesPerSample;
+    const qsizetype frames = dataSize / frameSize;
+    if (frames <= 0)
+    {
+        return {};
+    }
+    duration = double(frames) / rate;
+
+    auto sampleAt = [&] (qsizetype frame, quint32 channel) -> double
+    {
+        const qsizetype p =
+            dataPos + frame * frameSize + qsizetype(channel) * bytesPerSample;
+        switch (bytesPerSample)
+        {
+            case 1:
+                return (int(uchar(d[p])) - 128) / 128.0;
+            case 2:
+                return qint16(u16(p)) / 32768.0;
+            case 3:
+            {
+                qint32 v = qint32(u16(p) | (quint32(uchar(d[p + 2])) << 16));
+                if (v & 0x800000)
+                {
+                    v -= 0x1000000;
+                }
+                return v / 8388608.0;
+            }
+            default:
+            {
+                const quint32 raw = u32(p);
+                if (tag == 3)
+                {
+                    float f;
+                    memcpy(&f, &raw, sizeof(f));
+                    return f;
+                }
+                return qint32(raw) / 2147483648.0;
+            }
+        }
+    };
+
+    std::vector<double> peaks(bins, 0.0);
+    double maxPeak = 0;
+    for (int b = 0; b < bins; ++b)
+    {
+        const qsizetype from = frames * b / bins;
+        const qsizetype to =
+            std::max<qsizetype>(from + 1, frames * (b + 1) / bins);
+        const qsizetype step = std::max<qsizetype>(1, (to - from) / 64);
+        double peak = 0;
+        for (qsizetype f = from; f < to && f < frames; f += step)
+        {
+            for (quint32 c = 0; c < channels; ++c)
+            {
+                peak = std::max(peak, std::abs(sampleAt(f, c)));
+            }
+        }
+        peaks[b] = peak;
+        maxPeak = std::max(maxPeak, peak);
+    }
+
+    QVariantList result;
+    result.reserve(bins);
+    for (double p : peaks)
+    {
+        result.append(maxPeak > 1e-4 ? p / maxPeak : 0.0);
+    }
+    return result;
+}
+
+QVariantMap AnkiClient::cardBuilderStart() const
+{
+    QVariantMap result;
+    result["available"] = false;
+    if (profile() != nullptr)
+    {
+        result["padStart"] = profile()->audioPadStart();
+        result["padEnd"] = profile()->audioPadEnd();
+    }
+
+    const SubtitleListModel *list = m_context->subtitleLists()->primary();
+    const MpvSubtitle *sub = m_context->player()->state()->subtitle();
+    if (list == nullptr || sub->text().isEmpty())
+    {
+        return result;
+    }
+    const std::vector<SubtitleEntry> &items = list->items();
+    result["count"] = int(items.size());
+
+    /* The current line: the list entry that best matches what is showing */
+    int current = -1;
+    double bestDistance = 0.05;
+    for (size_t i = 0; i < items.size(); ++i)
+    {
+        const double distance = std::abs(items[i].start - sub->startTime()) +
+            std::abs(items[i].end - sub->endTime());
+        if (distance < bestDistance)
+        {
+            bestDistance = distance;
+            current = int(i);
+        }
+    }
+
+    /* Lines selected by hand in the subtitle list win over the current one */
+    int first = -1;
+    int last = -1;
+    const QModelIndexList selection =
+        list->selectionModel()->selectedIndexes();
+    for (const QModelIndex &index : selection)
+    {
+        if (index.row() < 0 || size_t(index.row()) >= items.size())
+        {
+            continue;
+        }
+        first = first < 0 ? index.row() : std::min(first, index.row());
+        last = std::max(last, index.row());
+    }
+    if (first < 0 || (current >= 0 && (current < first || current > last)))
+    {
+        first = last = current;
+    }
+    if (first < 0)
+    {
+        return result;
+    }
+
+    result["available"] = true;
+    result["first"] = first;
+    result["last"] = last;
+    return result;
+}
+
+QVariantMap AnkiClient::cardBuilderLine(int row) const
+{
+    QVariantMap result;
+    const SubtitleListModel *list = m_context->subtitleLists()->primary();
+    if (list == nullptr || row < 0 || size_t(row) >= list->items().size())
+    {
+        return result;
+    }
+    const SubtitleEntry &entry = list->items()[row];
+    const double delay = m_context->player()->state()->subtitle()->delay();
+    QString text = entry.text;
+    text.remove(m_subtitleFilterRegex);
+    result["text"] = text;
+    result["start"] = entry.start + delay;
+    result["end"] = entry.end + delay;
+    return result;
+}
+
+QCoro::QmlTask AnkiClient::cardBuilderClip(double start, double end, int bins)
+{
+    return cardBuilderClipAsync(start, end, bins);
+}
+
+QCoro::Task<QVariantMap> AnkiClient::cardBuilderClipAsync(
+    double start, double end, int bins)
+{
+    start = std::max(0.0, start);
+    QVariantMap failed;
+    failed["success"] = false;
+    if (end <= start)
+    {
+        co_return failed;
+    }
+
+    MpvController *controller = m_context->player()->controller();
+    QVariantMap clip = co_await QtConcurrent::run(
+        [controller, start, end, bins] () -> QVariantMap
+        {
+            MpvAudioClipArgs args{};
+            args.start = start;
+            args.end = end;
+            args.normalize = false;
+            args.extension = ".wav";
+            const QString path = controller->tempAudioClip(args);
+
+            QVariantMap out;
+            out["success"] = false;
+            if (path.isEmpty())
+            {
+                return out;
+            }
+            double duration = 0;
+            out["path"] = path;
+            out["peaks"] = wavPeaks(path, bins, duration);
+            out["duration"] = duration;
+            out["success"] = duration > 0;
+            return out;
+        }
+    );
+
+    if (clip.contains("path"))
+    {
+        m_cardClips.append(clip["path"].toString());
+        clip["url"] = QUrl::fromLocalFile(clip["path"].toString()).toString();
+    }
+    clip["start"] = start;
+    co_return clip;
+}
+
+void AnkiClient::setCardBuilderOverride(
+    const QString &text, double start, double end)
+{
+    m_cardOverride = {true, text, start, end};
+}
+
+void AnkiClient::clearCardBuilderOverride()
+{
+    m_cardOverride = {};
+    for (const QString &path : std::as_const(m_cardClips))
+    {
+        QFile::remove(path);
+    }
+    m_cardClips.clear();
+}
+
+void AnkiClient::applyCardBuilderOverride(
+    Term *term, const AnkiProfile *profile)
+{
+    if (!m_cardOverride.active)
+    {
+        return;
+    }
+    const CardBuilderOverride o = m_cardOverride;
+    m_cardOverride = {};
+
+    term->setStartTime(o.start + profile->audioPadStart());
+    term->setEndTime(o.end - profile->audioPadEnd());
+
+    /* Keep the cloze markers around the word inside the longer sentence */
+    const QString original =
+        term->clozePrefix() + term->clozeBody() + term->clozeSuffix();
+    qsizetype at = original.isEmpty() ? -1 : o.text.indexOf(original);
+    if (at >= 0)
+    {
+        term->setClozePrefix(o.text.left(at) + term->clozePrefix());
+        term->setClozeSuffix(
+            term->clozeSuffix() + o.text.mid(at + original.size())
+        );
+    }
+    else
+    {
+        const QString body = term->clozeBody();
+        at = body.isEmpty() ? -1 : o.text.indexOf(body);
+        if (at >= 0)
+        {
+            term->setClozePrefix(o.text.left(at));
+            term->setClozeSuffix(o.text.mid(at + body.size()));
+        }
+        else
+        {
+            term->setClozePrefix(o.text);
+            term->setClozeBody({});
+            term->setClozeSuffix({});
+        }
+    }
+    term->setSubtitle(o.text);
+}
+
+/* End Card Builder */
