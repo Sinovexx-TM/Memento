@@ -420,7 +420,15 @@ MpvPlayer {
 
         onPlayerWidthChanged: definitionPopup.clearResults()
         onPlayerHeightChanged: definitionPopup.clearResults()
-        onPausedChanged: definitionPopup.clearResults()
+        onPausedChanged: {
+            /* The pause that hovering the subtitles started is expected: it
+             * must not wipe the search that same hover just began. */
+            if (root.state.pause && root.hoverPaused)
+            {
+                return;
+            }
+            definitionPopup.clearResults();
+        }
         onPositionChanged: definitionPopup.clearResults()
 
         Rectangle {
@@ -513,8 +521,9 @@ MpvPlayer {
             {
                 return;
             }
-            else if (!root.state.pause)
+            else if (!root.state.pause && !root.hoverPaused)
             {
+                /* Neither paused nor about to be paused by the hover itself */
                 return;
             }
             definitionPopupTimer.restart();
