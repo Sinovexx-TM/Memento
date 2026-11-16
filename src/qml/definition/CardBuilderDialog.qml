@@ -193,231 +193,300 @@ Dialog {
     parent: Overlay.overlay
     anchors.centerIn: parent
     modal: true
-    width: Math.min(720, parent.width - 40)
-    title: qsTr("Card Builder")
+    width: Math.min(820, parent.width - 40)
+    padding: 16
     closePolicy: Popup.CloseOnEscape
 
     onAccepted: AnkiClient.setCardBuilderOverride(sentenceArea.text, root.selStart, root.selEnd)
     onRejected: AnkiClient.clearCardBuilderOverride()
 
-    contentItem: ColumnLayout {
-        spacing: 10
+    /* GSM-like look: field names on the left, fields on the right */
+    readonly property color accent: "#4a8fe0"
+    readonly property color addColor: "#27ae4b"
+    readonly property color cancelColor: "#d9363e"
 
-        Label {
-            Layout.fillWidth: true
-            font.bold: true
-            font.pointSize: 14
-            elide: Label.ElideRight
-            text: root.term ? (root.term.expression + (root.term.reading && root.term.reading !== root.term.expression ? "  【" + root.term.reading + "】" : "")) : ""
+    header: Label {
+        text: qsTr("Confirm Anki Card Details")
+        horizontalAlignment: Label.AlignHCenter
+        font.bold: true
+        padding: 10
+    }
+
+    component FieldLabel: Label {
+        Layout.preferredWidth: 90
+        Layout.alignment: Qt.AlignRight | Qt.AlignTop
+        horizontalAlignment: Label.AlignRight
+        font.bold: true
+    }
+
+    component FlatButton: Button {
+        id: flat
+        property color fill: flat.palette.button
+        property color textColor: flat.palette.buttonText
+        background: Rectangle {
+            radius: 3
+            color: !flat.enabled ? Qt.darker(flat.fill, 1.6) : (flat.down ? Qt.darker(flat.fill, 1.2) : (flat.hovered ? Qt.lighter(flat.fill, 1.15) : flat.fill))
+            border.color: flat.palette.mid
+            border.width: flat.fill === flat.palette.button ? 1 : 0
         }
-
-        Label {
-            text: qsTr("Sentence")
-            opacity: 0.7
-        }
-
-        ScrollView {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 110
-
-            TextArea {
-                id: sentenceArea
-                wrapMode: TextArea.Wrap
-                selectByMouse: true
-                background: Rectangle {
-                    color: "transparent"
-                    border.color: sentenceArea.activeFocus ? root.palette.highlight : root.palette.mid
-                }
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-
-            Button {
-                text: qsTr("Add Previous Line")
-                enabled: root.canAddPrevious
-                onClicked: root.addPreviousLine()
-            }
-            Button {
-                text: qsTr("Add Next Line")
-                enabled: root.canAddNext
-                onClicked: root.addNextLine()
-            }
-            Item { Layout.fillWidth: true }
-        }
-
-        Label {
-            text: qsTr("Audio")
-            opacity: 0.7
-        }
-
-        Item {
-            id: waveform
-            Layout.fillWidth: true
-            Layout.preferredHeight: 120
-
-            property string dragging: ""
-
-            Rectangle {
-                anchors.fill: parent
-                color: root.palette.base
-                border.color: root.palette.mid
-            }
-
-            Canvas {
-                id: canvas
-                anchors.fill: parent
-                onPaint: {
-                    const ctx = getContext("2d");
-                    ctx.reset();
-                    const peaks = root.peaks;
-                    if (!peaks || peaks.length === 0) {
-                        return;
-                    }
-                    ctx.fillStyle = String(root.palette.windowText);
-                    const barWidth = width / peaks.length;
-                    const mid = height / 2;
-                    for (let i = 0; i < peaks.length; ++i) {
-                        const h = Math.max(1, peaks[i] * (height - 8));
-                        ctx.fillRect(i * barWidth, mid - h / 2, Math.max(1, barWidth - 0.5), h);
-                    }
-                }
-                Connections {
-                    target: root
-                    function onPeaksChanged() { canvas.requestPaint(); }
-                }
-                onWidthChanged: requestPaint()
-                onHeightChanged: requestPaint()
-            }
-
-            /* Dim everything outside the selection */
-            Rectangle {
-                x: 0
-                width: Math.max(0, root.timeToX(root.selStart))
-                height: parent.height
-                color: root.palette.base
-                opacity: 0.65
-            }
-            Rectangle {
-                x: root.timeToX(root.selEnd)
-                width: Math.max(0, parent.width - x)
-                height: parent.height
-                color: root.palette.base
-                opacity: 0.65
-            }
-
-            Rectangle {
-                id: startHandle
-                x: root.timeToX(root.selStart) - width / 2
-                width: 6
-                height: parent.height
-                color: root.palette.highlight
-            }
-            Rectangle {
-                id: endHandle
-                x: root.timeToX(root.selEnd) - width / 2
-                width: 6
-                height: parent.height
-                color: root.palette.highlight
-            }
-
-            Label {
-                anchors.centerIn: parent
-                visible: root.loading || root.audioError.length > 0
-                text: root.loading ? qsTr("Loading audio...") : root.audioError
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.SizeHorCursor
-                onPressed: function(mouse) {
-                    const toStart = Math.abs(mouse.x - root.timeToX(root.selStart));
-                    const toEnd = Math.abs(mouse.x - root.timeToX(root.selEnd));
-                    waveform.dragging = toStart <= toEnd ? "start" : "end";
-                    if (waveform.dragging === "start") {
-                        root.setStart(root.xToTime(mouse.x));
-                    } else {
-                        root.setEnd(root.xToTime(mouse.x));
-                    }
-                }
-                onPositionChanged: function(mouse) {
-                    if (waveform.dragging === "start") {
-                        root.setStart(root.xToTime(mouse.x));
-                    } else if (waveform.dragging === "end") {
-                        root.setEnd(root.xToTime(mouse.x));
-                    }
-                }
-                onReleased: waveform.dragging = ""
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 6
-
-            Label { text: qsTr("Start") }
-            Button {
-                text: "−"
-                onClicked: root.setStart(root.selStart - root.nudge)
-            }
-            Button {
-                text: "+"
-                onClicked: root.setStart(root.selStart + root.nudge)
-            }
-
-            Label {
-                Layout.leftMargin: 12
-                text: qsTr("End")
-            }
-            Button {
-                text: "−"
-                onClicked: root.setEnd(root.selEnd - root.nudge)
-            }
-            Button {
-                text: "+"
-                onClicked: root.setEnd(root.selEnd + root.nudge)
-            }
-
-            Item { Layout.fillWidth: true }
-
-            Label {
-                opacity: 0.7
-                text: qsTr("%1 s").arg(Math.max(0, root.selEnd - root.selStart).toFixed(2))
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-
-            Button {
-                text: qsTr("▶ Play Range")
-                enabled: !root.loading && root.clipUrl.length > 0
-                onClicked: root.playRange()
-            }
-            Button {
-                text: qsTr("▶ Play Full")
-                enabled: !root.loading && root.clipUrl.length > 0
-                onClicked: root.playFull()
-            }
-            Button {
-                text: qsTr("Reset Trim")
-                onClicked: root.resetTrim(true)
-            }
-            Item { Layout.fillWidth: true }
+        contentItem: Label {
+            text: flat.text
+            color: flat.enabled ? flat.textColor : Qt.darker(flat.textColor, 1.8)
+            horizontalAlignment: Label.AlignHCenter
+            verticalAlignment: Label.AlignVCenter
         }
     }
 
-    footer: DialogButtonBox {
-        Button {
-            text: qsTr("Add to Anki")
-            highlighted: true
-            enabled: !root.loading
-            DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+    contentItem: ColumnLayout {
+        spacing: 12
+
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: 12
+            rowSpacing: 12
+
+            FieldLabel { text: qsTr("Expression:") }
+            Label {
+                Layout.fillWidth: true
+                elide: Label.ElideRight
+                text: root.term ? (root.term.expression + (root.term.reading && root.term.reading !== root.term.expression ? "  【" + root.term.reading + "】" : "")) : ""
+            }
+
+            FieldLabel { text: qsTr("Sentence:") }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                ScrollView {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 110
+
+                    TextArea {
+                        id: sentenceArea
+                        wrapMode: TextArea.Wrap
+                        selectByMouse: true
+                        background: Rectangle {
+                            color: root.palette.base
+                            border.color: sentenceArea.activeFocus ? root.accent : root.palette.mid
+                        }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    FlatButton {
+                        text: qsTr("Add Previous Line")
+                        enabled: root.canAddPrevious
+                        onClicked: root.addPreviousLine()
+                    }
+                    FlatButton {
+                        text: qsTr("Add Next Line")
+                        enabled: root.canAddNext
+                        onClicked: root.addNextLine()
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+            }
+
+            FieldLabel { text: qsTr("Audio:") }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Item {
+                    id: waveform
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 120
+
+                    property string dragging: ""
+
+                    Rectangle {
+                        anchors.fill: parent
+                        color: Qt.darker(root.palette.window, 1.25)
+                    }
+
+                    /* Lit background for the selected range */
+                    Rectangle {
+                        x: root.timeToX(root.selStart)
+                        width: Math.max(0, root.timeToX(root.selEnd) - x)
+                        height: parent.height
+                        color: Qt.lighter(root.palette.window, 1.25)
+                    }
+
+                    Canvas {
+                        id: canvas
+                        anchors.fill: parent
+                        onPaint: {
+                            const ctx = getContext("2d");
+                            ctx.reset();
+                            const peaks = root.peaks;
+                            if (!peaks || peaks.length === 0) {
+                                return;
+                            }
+                            const barWidth = width / peaks.length;
+                            const mid = height / 2;
+                            for (let i = 0; i < peaks.length; ++i) {
+                                const x = i * barWidth;
+                                const inside = x + barWidth >= root.timeToX(root.selStart) &&
+                                               x <= root.timeToX(root.selEnd);
+                                ctx.fillStyle = inside ? String(root.accent) : "#6b6b6b";
+                                const h = Math.max(1, peaks[i] * (height - 12));
+                                ctx.fillRect(x, mid - h / 2, Math.max(1, barWidth - 0.5), h);
+                            }
+                        }
+                        Connections {
+                            target: root
+                            function onPeaksChanged() { canvas.requestPaint(); }
+                            function onSelStartChanged() { canvas.requestPaint(); }
+                            function onSelEndChanged() { canvas.requestPaint(); }
+                        }
+                        onWidthChanged: requestPaint()
+                        onHeightChanged: requestPaint()
+                    }
+
+                    /* Handles: a thin line with small grips at both ends */
+                    Repeater {
+                        model: [
+                            { time: root.selStart },
+                            { time: root.selEnd }
+                        ]
+                        delegate: Item {
+                            required property var modelData
+                            x: root.timeToX(modelData.time) - 5
+                            width: 10
+                            height: waveform.height
+
+                            Rectangle {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: 2
+                                height: parent.height
+                                color: root.accent
+                            }
+                            Rectangle {
+                                anchors.top: parent.top
+                                width: parent.width
+                                height: 10
+                                color: root.accent
+                            }
+                            Rectangle {
+                                anchors.bottom: parent.bottom
+                                width: parent.width
+                                height: 10
+                                color: root.accent
+                            }
+                        }
+                    }
+
+                    Label {
+                        anchors.centerIn: parent
+                        visible: root.loading || root.audioError.length > 0
+                        text: root.loading ? qsTr("Loading audio...") : root.audioError
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.SizeHorCursor
+                        onPressed: function(mouse) {
+                            const toStart = Math.abs(mouse.x - root.timeToX(root.selStart));
+                            const toEnd = Math.abs(mouse.x - root.timeToX(root.selEnd));
+                            waveform.dragging = toStart <= toEnd ? "start" : "end";
+                            if (waveform.dragging === "start") {
+                                root.setStart(root.xToTime(mouse.x));
+                            } else {
+                                root.setEnd(root.xToTime(mouse.x));
+                            }
+                        }
+                        onPositionChanged: function(mouse) {
+                            if (waveform.dragging === "start") {
+                                root.setStart(root.xToTime(mouse.x));
+                            } else if (waveform.dragging === "end") {
+                                root.setEnd(root.xToTime(mouse.x));
+                            }
+                        }
+                        onReleased: waveform.dragging = ""
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    FlatButton {
+                        text: qsTr("▶ Play Range")
+                        enabled: !root.loading && root.clipUrl.length > 0
+                        onClicked: root.playRange()
+                    }
+                    FlatButton {
+                        text: qsTr("▶ Play Full")
+                        enabled: !root.loading && root.clipUrl.length > 0
+                        onClicked: root.playFull()
+                    }
+                    FlatButton {
+                        text: qsTr("Reset Trim")
+                        onClicked: root.resetTrim(true)
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Label { text: qsTr("Start") }
+                    FlatButton {
+                        text: "−"
+                        implicitWidth: 34
+                        onClicked: root.setStart(root.selStart - root.nudge)
+                    }
+                    FlatButton {
+                        text: "+"
+                        implicitWidth: 34
+                        onClicked: root.setStart(root.selStart + root.nudge)
+                    }
+                    Label {
+                        Layout.leftMargin: 6
+                        text: qsTr("End")
+                    }
+                    FlatButton {
+                        text: "−"
+                        implicitWidth: 34
+                        onClicked: root.setEnd(root.selEnd - root.nudge)
+                    }
+                    FlatButton {
+                        text: "+"
+                        implicitWidth: 34
+                        onClicked: root.setEnd(root.selEnd + root.nudge)
+                    }
+                    Label {
+                        Layout.leftMargin: 6
+                        opacity: 0.7
+                        text: qsTr("%1 s").arg(Math.max(0, root.selEnd - root.selStart).toFixed(2))
+                    }
+                }
+            }
         }
-        Button {
-            text: qsTr("Cancel")
-            DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: 4
+            spacing: 12
+
+            FlatButton {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
+                text: qsTr("Add to Anki")
+                fill: root.addColor
+                textColor: "white"
+                enabled: !root.loading
+                onClicked: root.accept()
+            }
+            FlatButton {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
+                text: qsTr("Cancel")
+                fill: root.cancelColor
+                textColor: "white"
+                onClicked: root.reject()
+            }
         }
     }
 }
