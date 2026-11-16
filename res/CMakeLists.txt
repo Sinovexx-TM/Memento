@@ -16,6 +16,7 @@ set(
     images/eye.svg
     images/fast-forward.svg
     images/fast-rewind.svg
+    images/forward-10.svg
     images/fullscreen-exit.svg
     images/fullscreen.svg
     images/gear.svg
@@ -28,10 +29,13 @@ set(
     images/pause.svg
     images/play.svg
     images/remove.svg
+    images/replay-10.svg
     images/search.svg
     images/settings.svg
     images/skip-next.svg
     images/skip-previous.svg
+    images/speed.svg
+    images/subtitles.svg
     images/volume-off.svg
     images/volume-on.svg
     images/window.svg

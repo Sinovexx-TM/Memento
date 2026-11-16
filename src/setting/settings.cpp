@@ -701,6 +701,12 @@ void Settings::loadSearchSettings()
             Keys::Search::RESUME_ON_HOVER_EXIT_DEFAULT
         ).toBool()
     );
+    setSearchNetflixControls(
+        s.value(
+            Keys::Search::NETFLIX_CONTROLS,
+            Keys::Search::NETFLIX_CONTROLS_DEFAULT
+        ).toBool()
+    );
     setSearchEpisodeInfo(
         s.value(
             Keys::Search::EPISODE_INFO,
@@ -809,6 +815,10 @@ void Settings::writeSearchSettings()
         searchResumeOnHoverExit()
     );
     s.setValue(
+        Keys::Search::NETFLIX_CONTROLS,
+        searchNetflixControls()
+    );
+    s.setValue(
         Keys::Search::EPISODE_INFO,
         searchEpisodeInfo()
     );
@@ -861,6 +871,7 @@ void Settings::defaultSearchSettings()
     setSearchHideSubs();
     setSearchPauseOnHover();
     setSearchResumeOnHoverExit();
+    setSearchNetflixControls();
     setSearchEpisodeInfo();
     setSearchCardBuilder();
     setSearchAutoPlayAudio();
@@ -2125,6 +2136,21 @@ void Settings::setSearchResumeOnHoverExit(bool value)
     }
     m_search.resumeOnHoverExit = value;
     emit searchResumeOnHoverExitChanged(m_search.resumeOnHoverExit);
+}
+
+bool Settings::searchNetflixControls() const noexcept
+{
+    return m_search.netflixControls;
+}
+
+void Settings::setSearchNetflixControls(bool value)
+{
+    if (m_search.netflixControls == value)
+    {
+        return;
+    }
+    m_search.netflixControls = value;
+    emit searchNetflixControlsChanged(m_search.netflixControls);
 }
 
 bool Settings::searchEpisodeInfo() const noexcept

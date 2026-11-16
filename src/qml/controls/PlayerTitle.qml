@@ -22,7 +22,7 @@ Item {
     readonly property real menuHeight: root.menu.visible ? root.menu.height : 0
 
     height: 110 + root.menuHeight
-    visible: MementoSettings.searchEpisodeInfo && root.controls.visible && root.info.title.length > 0
+    visible: MementoSettings.searchEpisodeInfo && !MementoSettings.searchNetflixControls && root.controls.visible && root.info.title.length > 0
     opacity: root.controls.opacity
 
     Rectangle {

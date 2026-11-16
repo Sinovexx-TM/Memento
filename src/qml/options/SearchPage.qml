@@ -105,6 +105,23 @@ Page {
                         Label {
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignLeft
+                            text: qsTr("Use the Netflix-style player controls")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            checked: MementoSettings.searchNetflixControls
+                            onClicked: MementoSettings.searchNetflixControls = checked
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
                             text: qsTr("Show the show and episode name with the controls, and when paused")
                         }
                         Switch {

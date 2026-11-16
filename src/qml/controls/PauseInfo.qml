@@ -27,6 +27,16 @@ Item {
 
     readonly property var info: Utils.parseMediaInfo(root.player.state.path, root.player.state.title)
 
+    /* The plain file name, for local files */
+    readonly property string fileName: {
+        const path = root.player.state.path;
+        if (!path || /^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(path)) {
+            return "";
+        }
+        const parts = path.split(/[\/]/);
+        return parts[parts.length - 1];
+    }
+
     readonly property bool wanted: MementoSettings.searchEpisodeInfo &&
                                    root.player.state.pause &&
                                    !root.player.hoverPaused &&
@@ -38,7 +48,7 @@ Item {
 
     /* Space the text can use above the subtitles */
     readonly property real limit: root.subtitleItem.visible ? root.subtitleItem.y - 24 : root.height - 24
-    readonly property real textY: Math.min((root.height - panel.height) / 2, root.limit - panel.height)
+    readonly property real textY: Math.min(root.height * 0.2, root.limit - panel.height)
     readonly property bool fits: root.textY >= 24
 
     readonly property bool shown: root.ready && root.wanted
@@ -68,8 +78,8 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "black"
-        opacity: 0.35
+        color: "#0b0c0e"
+        opacity: 0.78
     }
 
     Column {
@@ -79,6 +89,13 @@ Item {
         width: Math.min(root.width * 0.45, 900)
         spacing: 8
         visible: root.fits
+
+        Label {
+            width: panel.width
+            text: qsTr("You're watching")
+            color: "#a8a8a8"
+            font.pixelSize: Math.max(14, root.height * 0.032)
+        }
 
         Label {
             width: panel.width
@@ -95,9 +112,19 @@ Item {
             width: panel.width
             visible: text.length > 0
             text: root.info.episode
-            color: "#d6d6d6"
+            color: "white"
+            font.bold: true
             font.pixelSize: Math.max(16, root.height * 0.045)
             wrapMode: Text.Wrap
+        }
+
+        Label {
+            width: panel.width
+            visible: text.length > 0
+            text: root.fileName
+            color: "#8a8a8a"
+            font.pixelSize: Math.max(12, root.height * 0.026)
+            elide: Text.ElideMiddle
         }
     }
 }

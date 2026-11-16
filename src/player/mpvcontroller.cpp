@@ -364,6 +364,14 @@ void MpvController::setVolume(int64_t value)
     }
 }
 
+void MpvController::setSpeed(double value)
+{
+    if (::mpv_set_property_async(handle(), 0, "speed", MPV_FORMAT_DOUBLE, &value) < 0)
+    {
+        qWarning("Could not set speed to %f", value);
+    }
+}
+
 void MpvController::showText(const QString &text)
 {
     QByteArray utf8Text = text.toUtf8();

@@ -389,6 +389,21 @@ void MpvState::setTracks(const mpv_node *node)
     emit subtitleTracksChanged();
 }
 
+double MpvState::speed() const noexcept
+{
+    return m_speed;
+}
+
+void MpvState::setSpeed(double value)
+{
+    if (m_speed == value)
+    {
+        return;
+    }
+    m_speed = value;
+    emit speedChanged(m_speed);
+}
+
 int64_t MpvState::volume() const noexcept
 {
     return m_volume;

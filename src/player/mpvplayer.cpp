@@ -315,6 +315,14 @@ void MpvPlayer::initPropertyMap()
         }
     };
 
+    m_propertyMap["speed"] = [this] (mpv_event_property *prop)
+    {
+        if (prop->format == MPV_FORMAT_DOUBLE)
+        {
+            state()->setSpeed(*reinterpret_cast<double *>(prop->data));
+        }
+    };
+
     m_propertyMap["sub-delay"] = [this] (mpv_event_property *prop)
     {
         if (prop->format == MPV_FORMAT_DOUBLE)
@@ -468,6 +476,7 @@ void MpvPlayer::initializeMpv()
     mpv_observe_property(m_mpv, 0, "secondary-sub-delay", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "secondary-sub-visibility", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 0, "sub-delay",           MPV_FORMAT_DOUBLE);
+    mpv_observe_property(m_mpv, 0, "speed",               MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "sub-text",            MPV_FORMAT_STRING);
     mpv_observe_property(m_mpv, 0, "sub-visibility",      MPV_FORMAT_FLAG);
 

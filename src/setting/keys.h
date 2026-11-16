@@ -238,6 +238,9 @@ namespace Keys
         constexpr const char *RESUME_ON_HOVER_EXIT = "hover-resume";
         constexpr bool RESUME_ON_HOVER_EXIT_DEFAULT = true;
 
+        constexpr const char *NETFLIX_CONTROLS = "netflix-controls";
+        constexpr bool NETFLIX_CONTROLS_DEFAULT = true;
+
         constexpr const char *EPISODE_INFO = "episode-info";
         constexpr bool EPISODE_INFO_DEFAULT = true;
 

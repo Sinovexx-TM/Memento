@@ -8,10 +8,16 @@ Rectangle {
 
     required property MpvPlayer player
 
-    readonly property real position: durationSlider.position
+    /* Netflix-style layout instead of the classic bar */
+    readonly property bool netflix: MementoSettings.searchNetflixControls
 
-    height: 50
-    color: MementoPalette.window
+    readonly property real position: root.netflix ? netflixContent.position : durationSlider.position
+
+    /* True while a menu of the controls is open, so they do not fade out */
+    readonly property bool menuOpen: root.netflix && netflixContent.menuOpen
+
+    height: root.netflix ? 100 : 50
+    color: root.netflix ? "transparent" : MementoPalette.window
 
     /* Make sure mouse events aren't sent to mpv */
     MouseArea {
@@ -19,8 +25,33 @@ Rectangle {
         acceptedButtons: Qt.AllButtons
     }
 
+    /* Dark gradient behind the Netflix controls, reaching above them */
+    Rectangle {
+        visible: root.netflix
+        anchors {
+            left: parent.left
+            right: parent.right
+        }
+        height: 240
+        y: root.height - height
+        z: -1
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#00000000" }
+            GradientStop { position: 0.6; color: "#99000000" }
+            GradientStop { position: 1.0; color: "#E6000000" }
+        }
+    }
+
+    PlayerControlsNetflix {
+        id: netflixContent
+        anchors.fill: parent
+        visible: root.netflix
+        player: root.player
+    }
+
     RowLayout {
         id: layout
+        visible: !root.netflix
 
         readonly property int defaultMargin: 10
 
@@ -175,7 +206,7 @@ Rectangle {
         anchors.bottomMargin: 5
         x: durationSlider.x + durationSlider.xPosition - width / 2
 
-        active: MementoSettings.behaviorOscPreviewThumbnails
+        active: !root.netflix && MementoSettings.behaviorOscPreviewThumbnails
         sourceComponent: Component {
             PlayerThumbnail {
                 visible: durationSlider.hovered && !durationSlider.pressed

@@ -118,6 +118,12 @@ class MpvState : public QObject
     )
 
     Q_PROPERTY(
+        double speed
+        READ speed
+        NOTIFY speedChanged
+    )
+
+    Q_PROPERTY(
         int64_t maxVolume
         READ maxVolume
         NOTIFY maxVolumeChanged
@@ -443,6 +449,21 @@ public:
     void setVolume(int64_t value);
 
     /**
+     * @brief The current playback speed of the player.
+     *
+     * @return The speed multiplier (1.0 is normal speed).
+     */
+    [[nodiscard]]
+    double speed() const noexcept;
+
+    /**
+     * @brief Sets the current playback speed of the player.
+     *
+     * @param value The speed multiplier.
+     */
+    void setSpeed(double value);
+
+    /**
      * @brief The current max volume of the player.
      *
      * @return The current max volume of the player.
@@ -693,6 +714,13 @@ signals:
     void volumeChanged(int64_t value);
 
     /**
+     * @brief Emitted when the playback speed of the player is changed.
+     *
+     * @param value The current speed multiplier.
+     */
+    void speedChanged(double value);
+
+    /**
      * @brief Emitted when the max volume of the player changes.
      *
      * @param value The max volume of the player.
@@ -805,6 +833,9 @@ private:
 
     /* The current volume of the player */
     int64_t m_volume{0};
+
+    /* The current playback speed multiplier */
+    double m_speed{1.0};
 
     /* The maximum volume of the player */
     int64_t m_maxVolume{0};

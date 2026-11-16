@@ -287,6 +287,13 @@ class Settings : public QObject
     )
 
     Q_PROPERTY(
+        bool searchNetflixControls
+        READ searchNetflixControls
+        WRITE setSearchNetflixControls
+        NOTIFY searchNetflixControlsChanged
+    )
+
+    Q_PROPERTY(
         bool searchEpisodeInfo
         READ searchEpisodeInfo
         WRITE setSearchEpisodeInfo
@@ -1346,6 +1353,22 @@ public:
         bool value = Keys::Search::RESUME_ON_HOVER_EXIT_DEFAULT);
 
     /**
+     * @brief Uses the Netflix-style player controls.
+     *
+     * @return true for the Netflix-style controls, false for the classic bar.
+     */
+    [[nodiscard]]
+    bool searchNetflixControls() const noexcept;
+
+    /**
+     * @brief Sets whether the Netflix-style controls are used.
+     *
+     * @param value true for the Netflix-style controls, false otherwise.
+     */
+    void setSearchNetflixControls(
+        bool value = Keys::Search::NETFLIX_CONTROLS_DEFAULT);
+
+    /**
      * @brief Shows the show/episode title with the controls and when paused.
      *
      * @return true to show the episode info, false otherwise.
@@ -2267,6 +2290,13 @@ signals:
     void searchResumeOnHoverExitChanged(bool value);
 
     /**
+     * @brief Emitted when the search Netflix controls setting is changed.
+     *
+     * @param value The new value.
+     */
+    void searchNetflixControlsChanged(bool value);
+
+    /**
      * @brief Emitted when the search episode info setting is changed.
      *
      * @param value The new value.
@@ -2737,6 +2767,9 @@ private:
 
         /* true to resume playback when leaving the subtitles after a hover pause */
         bool resumeOnHoverExit{Keys::Search::RESUME_ON_HOVER_EXIT_DEFAULT};
+
+        /* true to use the Netflix-style player controls */
+        bool netflixControls{Keys::Search::NETFLIX_CONTROLS_DEFAULT};
 
         /* true to show the show/episode title and pause screen */
         bool episodeInfo{Keys::Search::EPISODE_INFO_DEFAULT};

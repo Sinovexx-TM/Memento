@@ -14,6 +14,7 @@ MpvPlayer {
         !root.ocrMode && (
             subtitleHover.hovered ||
             (!Features.isMacos && menu.anyHovered) ||
+            controls.menuOpen ||
             controlsHover.hovered
         )
 

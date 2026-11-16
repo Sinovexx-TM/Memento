@@ -276,6 +276,13 @@ public:
     Q_INVOKABLE void setVolume(int64_t value);
 
     /**
+     * @brief Sets the playback speed of the player.
+     *
+     * @param value The speed multiplier (1.0 is normal speed).
+     */
+    Q_INVOKABLE void setSpeed(double value);
+
+    /**
      * @brief Shows text temporarily on the player.
      *
      * @param text The text to show.
