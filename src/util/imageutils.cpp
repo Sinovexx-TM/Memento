@@ -340,3 +340,83 @@ QString ImageUtils::generatePitchGraph(
 
     return pitchGraph;
 }
+
+QString ImageUtils::generatePitchGraphYomitan(
+    const QStringList &mora,
+    const uint8_t pos,
+    const QString &stroke)
+{
+    constexpr int STEP = 50;
+    constexpr int OFFSET = 25;
+    constexpr int HIGH_Y = 25;
+    constexpr int LOW_Y = 75;
+    constexpr int TEXT_Y = 140;
+    constexpr int HEIGHT = 160;
+
+    const int n = static_cast<int>(mora.size());
+    if (n <= 0)
+    {
+        return QString();
+    }
+
+    /* High (true) or low (false) for each mora, plus the particle after it */
+    auto isHigh = [pos](int i) -> bool {
+        if (pos == 0)
+        {
+            return i > 0;
+        }
+        if (pos == 1)
+        {
+            return i == 0;
+        }
+        return i > 0 && i < pos;
+    };
+
+    auto x = [](int i) { return OFFSET + STEP * i; };
+    auto y = [&isHigh](int i) { return isHigh(i) ? HIGH_Y : LOW_Y; };
+
+    QString svg = QString(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" height=\"3.2em\" "
+        "viewBox=\"0 0 %1 %2\" style=\"display: inline-block;\">"
+    ).arg(STEP * (n + 1)).arg(HEIGHT);
+
+    /* Lines first, so the dots sit on top of them */
+    for (int i = 0; i < n; ++i)
+    {
+        svg += QString(
+            "<path d=\"M%1 %2 L%3 %4\" style=\"fill: none; stroke: %5; "
+            "stroke-width: 3px;\"/>"
+        ).arg(x(i)).arg(y(i)).arg(x(i + 1)).arg(y(i + 1)).arg(stroke);
+    }
+
+    for (int i = 0; i < n; ++i)
+    {
+        const bool downstep = pos > 0 && i == pos - 1;
+        svg += QString(
+            "<circle cx=\"%1\" cy=\"%2\" r=\"7\" style=\"fill: %3; "
+            "stroke: %3; stroke-width: 2px;\"/>"
+        ).arg(x(i)).arg(y(i)).arg(stroke);
+        if (downstep)
+        {
+            svg += QString(
+                "<circle cx=\"%1\" cy=\"%2\" r=\"13\" style=\"fill: none; "
+                "stroke: %3; stroke-width: 2.5px;\"/>"
+            ).arg(x(i)).arg(y(i)).arg(stroke);
+        }
+        QString label = mora[i];
+        label.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        svg += QString(
+            "<text x=\"%1\" y=\"%2\" text-anchor=\"middle\" "
+            "style=\"fill: %3; font-size: 34px;\">%4</text>"
+        ).arg(x(i)).arg(TEXT_Y).arg(stroke).arg(label);
+    }
+
+    /* The particle after the word: hollow */
+    svg += QString(
+        "<circle cx=\"%1\" cy=\"%2\" r=\"7\" style=\"fill: none; "
+        "stroke: %3; stroke-width: 2.5px;\"/>"
+    ).arg(x(n)).arg(y(n)).arg(stroke);
+
+    svg += "</svg>";
+    return svg;
+}

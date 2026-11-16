@@ -21,6 +21,7 @@
 #pragma once
 
 #include <QString>
+#include <QStringList>
 
 /**
  * @brief Utilities for handling imagery.
@@ -61,6 +62,22 @@ QString generatePitchGraph(
     const int moraSize,
     const uint8_t pos,
     const QString &fill,
+    const QString &stroke);
+
+/**
+ * @brief Generates a Yomitan-style pitch graph SVG (fork): small dots, thin
+ * lines, the kana of each mora under its dot, a hollow dot for the particle
+ * and a ringed dot on the last high mora before a downstep.
+ *
+ * @param mora The mora of the reading, one string each.
+ * @param pos The pitch position number (0 = heiban).
+ * @param stroke The colour of dots, lines and kana.
+ * @return The string representation of the SVG.
+ */
+[[nodiscard]]
+QString generatePitchGraphYomitan(
+    const QStringList &mora,
+    const uint8_t pos,
     const QString &stroke);
 
 } // namespace ImageUtils

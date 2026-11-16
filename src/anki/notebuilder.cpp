@@ -1484,8 +1484,9 @@ static QString getPitchGraphs(const QList<Pitch *> &pitches)
                 pitchGraph += "<li>";
             }
 
-            pitchGraph += ImageUtils::generatePitchGraph(
-                p->mora().size(), pos, "rgba(0,0,0,0)", "currentColor"
+            /* fork: Yomitan-style graph with the kana under each dot */
+            pitchGraph += ImageUtils::generatePitchGraphYomitan(
+                p->mora(), pos, "currentColor"
             );
 
             if (multiplePitches)
