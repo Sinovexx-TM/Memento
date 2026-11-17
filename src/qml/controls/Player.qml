@@ -433,7 +433,8 @@ MpvPlayer {
         closePolicy: Popup.NoAutoClose
 
         /* Yomitan-like frame: no thick style padding, a 1 px grey border
-         * against the dark background and a soft shadow outside it. */
+         * against the dark background, rounded corners, and a light glow
+         * outside that fades over 12 px (values sampled from Yomitan). */
         padding: 0
         topInset: 0
         bottomInset: 0
@@ -441,20 +442,22 @@ MpvPlayer {
         rightInset: 0
         background: Item {
             Repeater {
-                model: 6
+                /* Glow strength 1 px outside the border, 2 px, ... 12 px */
+                model: [0.23, 0.19, 0.156, 0.12, 0.09, 0.071, 0.05, 0.036, 0.024, 0.018, 0.01, 0.006]
                 Rectangle {
                     required property int index
+                    required property real modelData
                     anchors.fill: parent
-                    anchors.margins: -(6 - index)
-                    radius: 4 + (6 - index)
+                    anchors.margins: -(index + 1)
+                    radius: 8 + index + 1
                     color: "transparent"
                     border.width: 1
-                    border.color: Qt.rgba(0, 0, 0, 0.05 + index * 0.05)
+                    border.color: Qt.rgba(1, 1, 1, modelData)
                 }
             }
             Rectangle {
                 anchors.fill: parent
-                radius: 4
+                radius: 8
                 color: PopupPalette.window
             }
         }
@@ -501,7 +504,7 @@ MpvPlayer {
             id: dictionaryBorderRectangle
             anchors.fill: parent
             color: "transparent"
-            radius: 4
+            radius: 8
             border.color: "#57575f"
             border.width: 1
 
@@ -513,7 +516,8 @@ MpvPlayer {
             DefinitionPage {
                 id: definitionPage
                 anchors.fill: parent
-                anchors.margins: dictionaryBorderRectangle.border.width
+                /* 3 px keeps the page's square corners inside the rounded border */
+                anchors.margins: 3
                 search: dictionarySearch
 
                 /**
