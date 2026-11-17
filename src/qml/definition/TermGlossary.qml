@@ -5,6 +5,7 @@ import Ripose.Memento
 
 ColumnLayout {
     id: root
+    spacing: 2
 
     required property Term term
     required property TermDefinition definition

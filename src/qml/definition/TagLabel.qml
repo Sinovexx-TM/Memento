@@ -11,27 +11,27 @@ MetaLabel {
     color: {
         if (root.tag.category === "name")
         {
-            return "#b6327a";
+            return "#a0306e";
         }
         else if (root.tag.category === "expression")
         {
-            return "#f0ad4e";
+            return "#c08a3e";
         }
         else if (root.tag.category === "popular")
         {
-            return "#0275d8";
+            return "#1f5c99";
         }
         else if (root.tag.category === "frequent")
         {
-            return "#5bc0de";
+            return "#3d7a8c";
         }
         else if (root.tag.category === "archaism")
         {
-            return "#d9534f";
+            return "#b04a46";
         }
         else if (root.tag.category === "dictionary")
         {
-            return "#aa66cc";
+            return "#9150ad";
         }
         else if (root.tag.category === "frequency")
         {

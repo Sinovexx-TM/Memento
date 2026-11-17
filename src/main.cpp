@@ -488,6 +488,13 @@ int main(int argc, char *argv[])
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 #endif // Q_OS_MACOS
 
+#if defined(Q_OS_WIN)
+    /* Draw text with Windows' own renderer (like a browser) instead of Qt's
+     * distance-field text, which looks softer. Subtitles set QtRendering
+     * explicitly and are unaffected. */
+    QQuickWindow::setTextRenderType(QQuickWindow::NativeTextRendering);
+#endif // defined(Q_OS_WIN)
+
 #ifdef MEMENTO_QAPPLICATION
     QApplication app(argc, argv);
 #else
