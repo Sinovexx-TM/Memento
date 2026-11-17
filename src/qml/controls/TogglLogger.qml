@@ -28,6 +28,23 @@ Item {
     property string viewTitle: ""
     property real viewDuration: 0
 
+    /* Opening chapter [start, end] and where the episode content ends
+     * (start of the ending chapter or end of the last dialogue line);
+     * -1 when not known. Kept from the last computeEnd() of this file. */
+    property real opStart: -1
+    property real opEnd: -1
+    property real contentEnd: -1
+
+    function isOpTitle(title) {
+        return /^(op|opening)\b/i.test(title) || /\b(OP|Opening)\b/.test(title) ||
+               title.includes("オープニング");
+    }
+
+    function isEdTitle(title) {
+        return /^(ed|ending|credits?)\b/i.test(title) || /\b(ED|Ending)\b/.test(title) ||
+               title.includes("エンディング");
+    }
+
     function isActive() {
         return TogglClient.enabled && TogglClient.hasToken();
     }
@@ -39,6 +56,9 @@ Item {
         root.lastPos = -1;
         root.maxPos = 0;
         root.endDirty = true;
+        root.opStart = -1;
+        root.opEnd = -1;
+        root.contentEnd = -1;
         root.viewTitle = root.player.state.title ?? "";
         root.viewDuration = root.player.state.duration > 0 ? root.player.state.duration : 0;
     }
@@ -64,17 +84,57 @@ Item {
             return -1;
         }
 
-        /* 1. Ending chapter */
+        /* Chapters. Named OP/ED chapters win; otherwise an opening or ending
+         * song is a chapter of 80-100 s (releases often name them "Chapter 02"
+         * or "A90Sec"): the first one in the first 40 % is the OP, the last
+         * one after the halfway point is the ED. */
         const times = root.player.state.chapters;
         const titles = root.player.state.chapterTitles;
+        const chapterEnd = i => i + 1 < times.length ? times[i + 1] : duration;
+        const songLength = i => {
+            const length = chapterEnd(i) - times[i];
+            return length >= 80 && length <= 100;
+        };
+        root.opStart = -1;
+        root.opEnd = -1;
+        root.contentEnd = -1;
+
+        let op = -1;
+        let ed = -1;
         for (let i = 0; i < times.length; ++i) {
             const title = (titles[i] ?? "").trim();
-            if (times[i] > duration * 0.4 &&
-                    (/^(ed|ending|credits?)\b/i.test(title) ||
-                     /\b(ED|Ending)\b/.test(title) ||
-                     title.includes("エンディング"))) {
-                return times[i];
+            if (op < 0 && times[i] < duration * 0.4 && root.isOpTitle(title)) {
+                op = i;
             }
+            if (ed < 0 && times[i] > duration * 0.4 && root.isEdTitle(title)) {
+                ed = i;
+            }
+        }
+        if (op < 0) {
+            for (let i = 0; i < times.length; ++i) {
+                if (times[i] < duration * 0.4 && songLength(i)) {
+                    op = i;
+                    break;
+                }
+            }
+        }
+        if (ed < 0) {
+            for (let i = times.length - 1; i >= 0; --i) {
+                if (times[i] > duration * 0.5 && i !== op && songLength(i)) {
+                    ed = i;
+                    break;
+                }
+            }
+        }
+        if (op >= 0) {
+            root.opStart = times[op];
+            root.opEnd = chapterEnd(op);
+        }
+
+        /* 1. Ending chapter */
+        if (ed >= 0) {
+            root.contentEnd = times[ed];
+            return times[ed];
         }
 
         /* 2. Last dialogue line; only an external file is complete in advance */
@@ -91,6 +151,7 @@ Item {
                 last = Math.max(last, model.data(index, SubtitleListModel.EndRole));
             }
             if (last > duration * 0.5 && last <= duration) {
+                root.contentEnd = last;
                 return last;
             }
         }
@@ -99,15 +160,37 @@ Item {
         return duration * TogglClient.endFallbackPercent / 100;
     }
 
+    /* Full mode: the episode without the opening and without everything
+     * from the ending on (when chapters or a subtitle file show where they
+     * are). Played mode: time played outside those parts. */
     function secondsToLog() {
-        return Math.round(TogglClient.usePlayedTime ?
-            root.played : root.viewDuration);
+        if (TogglClient.usePlayedTime) {
+            return Math.round(root.played);
+        }
+        let seconds = root.contentEnd > 0 ? root.contentEnd : root.viewDuration;
+        if (root.opStart >= 0 && root.opEnd > root.opStart && root.opEnd <= seconds) {
+            seconds -= root.opEnd - root.opStart;
+        }
+        return Math.round(seconds);
+    }
+
+    function countsAsWatched(pos) {
+        if (root.opStart >= 0 && pos >= root.opStart && pos < root.opEnd) {
+            return false;
+        }
+        return !(root.contentEnd > 0 && pos >= root.contentEnd);
     }
 
     function label() {
         const info = Utils.parseMediaInfo(root.path, root.viewTitle);
         const show = info.title && info.title.length > 0 ? info.title : qsTr("this episode");
-        return info.episode && info.episode.length > 0 ? `${show} E${info.episode}` : show;
+        const episode = (info.episode ?? "").trim();
+        if (episode.length === 0) {
+            return show;
+        }
+        /* parseMediaInfo gives "Episode 9" (or a bare "9"): show it as E9 */
+        const number = episode.match(/^(?:episode\s*)?(\d+(?:\.\d+)?)$/i);
+        return number ? `${show} E${number[1]}` : `${show} ${episode}`;
     }
 
     function ask() {
@@ -169,7 +252,7 @@ Item {
             const pos = root.player.state.timePosition;
             if (root.lastPos >= 0 && !root.player.state.pause) {
                 const delta = pos - root.lastPos;
-                if (delta > 0 && delta < 2) {
+                if (delta > 0 && delta < 2 && root.countsAsWatched(pos)) {
                     root.played += delta;
                 }
             }
