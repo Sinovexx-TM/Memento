@@ -266,8 +266,7 @@ QString Renderer::parse(
 
     const bool containsSc = containsStructuredContent(content);
     const bool shouldUseBullets =
-        style == Setting::GlossaryStyleBullet && !containsSc &&
-        content.size() > 1;   /* fork: a single gloss gets no bullet, like Yomitan */
+        style == Setting::GlossaryStyleBullet && !containsSc;
 
     QString glossary;
     glossary.reserve(OUTPUT_RESERVE);
