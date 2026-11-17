@@ -267,11 +267,6 @@ Item {
                     ToolButton {
                         id: openAnkiButton
                         focusPolicy: Qt.NoFocus
-                        icon.width: 16
-                        icon.height: 16
-                        padding: 5
-                        implicitWidth: 26
-                        implicitHeight: 26
                         visible: {
                             if (!AnkiConfig.enabled || !root.term || !root.term.ankiChecked)
                             {
@@ -283,7 +278,7 @@ Item {
                             }
                             return !root.term.addableExpression || !root.term.addableReading;
                         }
-                        icon.source: Utils.toImageProvider("note-stack", PopupPalette.dimText)
+                        icon.source: Utils.toImageProvider("note-stack", PopupPalette.text)
                         onClicked: AnkiClient.openDuplicates(root.term).then(function(result) {
                             if (result.success)
                             {
@@ -298,11 +293,6 @@ Item {
                     ToolButton {
                         id: kanjiKanaButton
                         focusPolicy: Qt.NoFocus
-                        icon.width: 16
-                        icon.height: 16
-                        padding: 5
-                        implicitWidth: 26
-                        implicitHeight: 26
                         visible: AnkiConfig.enabled &&
                                  root.term &&
                                  root.term.ankiChecked &&
@@ -312,7 +302,7 @@ Item {
                                  !root.term.ankiAdding &&
                                  root.term.addableExpression &&
                                  root.term.addableReading
-                        icon.source: Utils.toImageProvider(root.term?.readingAsExpression ? "kana" : "kanji", PopupPalette.dimText)
+                        icon.source: Utils.toImageProvider(root.term?.readingAsExpression ? "kana" : "kanji", PopupPalette.text)
                         onClicked: {
                             if (root.term)
                             {
@@ -324,11 +314,6 @@ Item {
                     ToolButton {
                         id: addAnkiButton
                         focusPolicy: Qt.NoFocus
-                        icon.width: 16
-                        icon.height: 16
-                        padding: 5
-                        implicitWidth: 26
-                        implicitHeight: 26
                         visible: AnkiConfig.enabled &&
                                  root.term &&
                                  root.term.ankiChecked &&
@@ -408,11 +393,6 @@ Item {
                         }
 
                         focusPolicy: Qt.NoFocus
-                        icon.width: 16
-                        icon.height: 16
-                        padding: 5
-                        implicitWidth: 26
-                        implicitHeight: 26
 
                         enabled: !audioButton.loading &&
                                  audioFiles.loadState === AudioFiles.Loaded &&
@@ -422,9 +402,9 @@ Item {
                             if (audioFiles.loadState !== AudioFiles.Loaded ||
                                     (audioFiles.files.length > 0 && audioFiles.files[0].exists))
                             {
-                                return Utils.toImageProvider("volume-on", Qt.color("#e06c6c"));
+                                return Utils.toImageProvider("volume-on", PopupPalette.text);
                             }
-                            return Utils.toImageProvider("volume-off", PopupPalette.dimText);
+                            return Utils.toImageProvider("volume-off", PopupPalette.text);
                         }
 
                         onClicked: {
@@ -460,28 +440,18 @@ Item {
                     ToolButton {
                         id: collapseButton
                         focusPolicy: Qt.NoFocus
-                        icon.width: 16
-                        icon.height: 16
-                        padding: 5
-                        implicitWidth: 26
-                        implicitHeight: 26
                         visible: !root.term?.collapsed ?? false
                         icon.name: MementoSettings.interfaceSystemIcons ? "go-down" : null
-                        icon.source: Utils.toImageProvider("arrow-drop-down", PopupPalette.dimText)
+                        icon.source: Utils.toImageProvider("arrow-drop-down", PopupPalette.text)
                         onClicked: if (root.term) root.term.collapsed = true
                     }
 
                     ToolButton {
                         id: uncollapseButton
                         focusPolicy: Qt.NoFocus
-                        icon.width: 16
-                        icon.height: 16
-                        padding: 5
-                        implicitWidth: 26
-                        implicitHeight: 26
                         visible: root.term?.collapsed ?? false
                         icon.name: MementoSettings.interfaceSystemIcons ? "go-up" : null
-                        icon.source: Utils.toImageProvider("arrow-drop-up", PopupPalette.dimText)
+                        icon.source: Utils.toImageProvider("arrow-drop-up", PopupPalette.text)
                         onClicked: if (root.term) root.term.collapsed = false
                     }
                 }
