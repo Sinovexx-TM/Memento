@@ -345,6 +345,142 @@ Page {
                     }
                 }
             }
+
+            SettingsBox {
+                id: togglBox
+                Layout.preferredWidth: root.preferredWidth
+                Layout.alignment: Qt.AlignHCenter
+                Layout.bottomMargin: root.groupSpacing
+                title: qsTr("Toggl (saved immediately)")
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: root.groupSpacing
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Ask to log finished episodes to Toggl")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            checked: TogglClient.enabled
+                            onClicked: TogglClient.enabled = checked
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Episode end fallback (% of length, when there is no ending chapter or subtitle file)")
+                        }
+                        SpinBox {
+                            Layout.alignment: Qt.AlignRight
+                            editable: true
+                            from: 50
+                            to: 100
+                            value: TogglClient.endFallbackPercent
+                            onValueModified: TogglClient.endFallbackPercent = value
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Also ask when leaving or closing a file after (% watched)")
+                        }
+                        SpinBox {
+                            Layout.alignment: Qt.AlignRight
+                            editable: true
+                            from: 10
+                            to: 100
+                            value: TogglClient.lateAskPercent
+                            onValueModified: TogglClient.lateAskPercent = value
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Log time actually played (no pauses or skips) instead of the full length")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            checked: TogglClient.usePlayedTime
+                            onClicked: TogglClient.usePlayedTime = checked
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            text: qsTr("Description")
+                        }
+                        TextField {
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 220
+                            text: TogglClient.description
+                            onEditingFinished: TogglClient.description = text
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            text: qsTr("Project")
+                        }
+                        TextField {
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 220
+                            text: TogglClient.project
+                            onEditingFinished: TogglClient.project = text
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Label.WordWrap
+                        color: MementoPalette.placeholderText
+                        text: (TogglClient.hasToken() ?
+                                   qsTr("Token found: %1") :
+                                   qsTr("No token yet. Put your Toggl API token in %1"))
+                                  .arg(TogglClient.tokenPath) +
+                              (TogglClient.pendingCount > 0 ?
+                                   "
+" + qsTr("%1 entry(s) waiting to be sent.").arg(TogglClient.pendingCount) : "")
+                    }
+                }
+            }
         }
     }
 }

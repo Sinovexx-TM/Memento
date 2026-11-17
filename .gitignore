@@ -86,3 +86,7 @@ CMakeLists.txt.user*
 .qtcreator
 .venv
 .vscode
+
+# Toggl API token and unsent entries (normally in the config folder, never commit)
+toggl_token.txt
+toggl_pending.json

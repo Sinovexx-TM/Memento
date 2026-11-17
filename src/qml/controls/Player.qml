@@ -20,6 +20,9 @@ MpvPlayer {
 
     readonly property bool pause: root.state.pause
 
+    /* Toggl episode logging; Main.qml asks it before quitting */
+    property alias toggl: togglLogger
+
     property point cursorPosition: Qt.point(0, 0)
 
     property bool ocrMode: false
@@ -601,6 +604,11 @@ MpvPlayer {
             definitionPage.resetStack();
             dictionarySearch.clearResults();
         }
+    }
+
+    TogglLogger {
+        id: togglLogger
+        player: root
     }
 
     PauseInfo {

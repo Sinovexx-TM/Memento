@@ -123,6 +123,7 @@ void MpvPlayer::initPropertyMap()
         mpv_node_list *arr = node->u.list;
 
         QList<double> chapters;
+        QStringList titles;
         for (int i = 0; i < arr->num; ++i)
         {
             if (arr->values[i].format != MPV_FORMAT_NODE_MAP)
@@ -130,16 +131,30 @@ void MpvPlayer::initPropertyMap()
                 continue;
             }
             mpv_node_list *map = arr->values[i].u.list;
+            bool hasTime = false;
+            double time = 0;
+            QString title;
             for (int j = 0; j < map->num; ++j)
             {
                 if (map->values[j].format == MPV_FORMAT_DOUBLE &&
                     std::strcmp(map->keys[j], "time") == 0)
                 {
-                    chapters.emplaceBack(map->values[j].u.double_);
+                    hasTime = true;
+                    time = map->values[j].u.double_;
+                }
+                else if (map->values[j].format == MPV_FORMAT_STRING &&
+                         std::strcmp(map->keys[j], "title") == 0)
+                {
+                    title = QString::fromUtf8(map->values[j].u.string);
                 }
             }
+            if (hasTime)
+            {
+                chapters.emplaceBack(time);
+                titles.emplaceBack(title);
+            }
         }
-        state()->setChapters(std::move(chapters));
+        state()->setChapters(std::move(chapters), std::move(titles));
     };
 
     m_propertyMap["duration"] = [this] (mpv_event_property *prop)

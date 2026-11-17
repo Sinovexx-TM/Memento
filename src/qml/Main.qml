@@ -11,6 +11,14 @@ ApplicationWindow {
     height: 720
     visibility: Window.Windowed
     color: "black"
+
+    /* Offer to log the episode to Toggl before quitting (once) */
+    onClosing: function(close) {
+        if (player.toggl.askBeforeQuit())
+        {
+            close.accepted = false;
+        }
+    }
     title: player.state.title ? qsTr("%1 - Memento").arg(player.state.title) : qsTr("Memento")
 
     /* Handle fullscreen on non-Windows platforms */

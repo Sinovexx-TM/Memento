@@ -63,6 +63,7 @@
 #include "quick/furiganaparser.h"
 #include "quick/keytracker.h"
 #include "quick/paths.h"
+#include "quick/togglclient.h"
 #include "setting/migration.h"
 #include "setting/settings.h"
 #include "state/context.h"
@@ -255,6 +256,9 @@ static void registerQmlTypes(Context &context)
     qmlRegisterSingletonInstance<FuriganaParser>(
         MEMENTO_URI, 1, 0, "FuriganaParser",
         new FuriganaParser(context.settings(), &context)
+    );
+    qmlRegisterSingletonInstance<TogglClient>(
+        MEMENTO_URI, 1, 0, "TogglClient", new TogglClient(&context)
     );
     qmlRegisterSingletonInstance<KeyTracker>(
         MEMENTO_URI, 1, 0, "KeyTracker", context.keyTracker()

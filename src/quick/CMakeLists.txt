@@ -105,3 +105,18 @@ target_link_libraries(
     PUBLIC Qt6::Core
     PUBLIC utils
 )
+
+add_library(
+    togglclient
+    togglclient.cpp
+    togglclient.h
+)
+target_compile_features(togglclient PRIVATE cxx_std_20)
+target_include_directories(togglclient PRIVATE ${MEMENTO_INCLUDE_DIRS})
+target_compile_options(togglclient PRIVATE ${MEMENTO_COMPILER_FLAGS})
+target_link_libraries(
+    togglclient
+    PUBLIC Qt6::Core
+    PUBLIC Qt6::Network
+    PRIVATE utils
+)

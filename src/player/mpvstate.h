@@ -23,6 +23,7 @@
 #include <QObject>
 
 #include <QList>
+#include <QStringList>
 #include <QQmlListProperty>
 
 #include <mpv/client.h>
@@ -54,6 +55,12 @@ class MpvState : public QObject
     Q_PROPERTY(
         QList<double> chapters
         READ chapters
+        NOTIFY chaptersChanged
+    )
+
+    Q_PROPERTY(
+        QStringList chapterTitles
+        READ chapterTitles
         NOTIFY chaptersChanged
     )
 
@@ -258,6 +265,18 @@ public:
      * @param values The value to set as the timestamps.
      */
     void setChapters(QList<double> values);
+
+    /**
+     * @brief Chapter titles, index-aligned with chapters(); empty string when
+     * a chapter has no title.
+     */
+    [[nodiscard]]
+    const QStringList &chapterTitles() const noexcept;
+
+    /**
+     * @brief Set chapter times and titles together.
+     */
+    void setChapters(QList<double> values, QStringList titles);
 
     /**
      * @brief Returns the duration of the content.
@@ -803,6 +822,7 @@ private:
 
     /* Chapter timestamps */
     QList<double> m_chapters;
+    QStringList m_chapterTitles;
 
     /* The duration of the content */
     double m_duration{0};

@@ -82,6 +82,17 @@ const QList<double> &MpvState::chapters() const noexcept
     return m_chapters;
 }
 
+const QStringList &MpvState::chapterTitles() const noexcept
+{
+    return m_chapterTitles;
+}
+
+void MpvState::setChapters(QList<double> values, QStringList titles)
+{
+    m_chapterTitles = std::move(titles);
+    setChapters(std::move(values));
+}
+
 void MpvState::setChapters(QList<double> values)
 {
     m_chapters = std::move(values);
