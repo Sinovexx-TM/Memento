@@ -432,6 +432,33 @@ MpvPlayer {
         height: MementoSettings.interfacePopupHeight
         closePolicy: Popup.NoAutoClose
 
+        /* Yomitan-like frame: no thick style padding, a 1 px grey border
+         * against the dark background and a soft shadow outside it. */
+        padding: 0
+        topInset: 0
+        bottomInset: 0
+        leftInset: 0
+        rightInset: 0
+        background: Item {
+            Repeater {
+                model: 6
+                Rectangle {
+                    required property int index
+                    anchors.fill: parent
+                    anchors.margins: -(6 - index)
+                    radius: 4 + (6 - index)
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Qt.rgba(0, 0, 0, 0.05 + index * 0.05)
+                }
+            }
+            Rectangle {
+                anchors.fill: parent
+                radius: 4
+                color: PopupPalette.window
+            }
+        }
+
         onShouldOpenChanged: definitionPopup.shouldOpen ? definitionPopup.open() : definitionPopup.close()
         onOpened: {
             const popupFits = x >= 0 &&
@@ -474,8 +501,9 @@ MpvPlayer {
             id: dictionaryBorderRectangle
             anchors.fill: parent
             color: "transparent"
-            border.color: MementoPalette.border
-            border.width: Features.isUnix ? 1 : 0
+            radius: 4
+            border.color: "#57575f"
+            border.width: 1
 
             HoverHandler {
                 id: popupHover
