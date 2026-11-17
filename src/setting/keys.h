@@ -154,7 +154,7 @@ namespace Keys
         constexpr const char *GROUP = "behavior";
 
         constexpr const char *AUTO_FIT = "autofit";
-        constexpr bool AUTO_FIT_DEFAULT = true;
+        constexpr bool AUTO_FIT_DEFAULT = false;
 
         constexpr const char *AUTO_FIT_PERCENT = "autofit-percent";
         constexpr int AUTO_FIT_PERCENT_DEFAULT = 100;
@@ -233,7 +233,7 @@ namespace Keys
         constexpr bool HIDE_SUBS_DEFAULT = false;
 
         constexpr const char *PAUSE_ON_HOVER = "hover-pause";
-        constexpr bool PAUSE_ON_HOVER_DEFAULT = false;
+        constexpr bool PAUSE_ON_HOVER_DEFAULT = true;
 
         constexpr const char *RESUME_ON_HOVER_EXIT = "hover-resume";
         constexpr bool RESUME_ON_HOVER_EXIT_DEFAULT = true;
@@ -251,7 +251,7 @@ namespace Keys
         constexpr bool AUTO_PLAY_AUDIO_DEFAULT = false;
 
         constexpr const char *GLOSSARY_STYLE = "list-result";
-        constexpr Setting::GlossaryStyle GLOSSARY_STYLE_DEFAULT = Setting::GlossaryStyleBullet;
+        constexpr Setting::GlossaryStyle GLOSSARY_STYLE_DEFAULT = Setting::GlossaryStylePipe;
 
         constexpr const char *REPLACE_NEWLINES = "replace-lines";
         constexpr bool REPLACE_NEWLINES_DEFAULT = false;
@@ -266,7 +266,7 @@ namespace Keys
         constexpr bool SUBTITLE_FURIGANA_DEFAULT = false;
 
         constexpr const char *SHOW_ANKI_GLOSSARY_CHECKBOX = "show-anki-glossary-checkbox";
-        constexpr bool SHOW_ANKI_GLOSSARY_CHECKBOX_DEFAULT = true;
+        constexpr bool SHOW_ANKI_GLOSSARY_CHECKBOX_DEFAULT = false;
     }
 
     namespace Interface
@@ -317,7 +317,7 @@ namespace Keys
 
         constexpr const char *SEARCH_EXPRESSION_FONT = "search-expression-font";
         static const QFont SEARCH_EXPRESSION_FONT_DEFAULT(
-            "Noto Sans CJK JP",
+            "Meiryo",
 #if defined(Q_OS_MACOS)
                 28
 #else
@@ -327,7 +327,7 @@ namespace Keys
 
         constexpr const char *SEARCH_READING_FONT = "search-reading-font";
         const QFont SEARCH_READING_FONT_DEFAULT(
-            "Noto Sans CJK JP",
+            "Meiryo",
 #if defined(Q_OS_MACOS)
                 16
 #else
@@ -337,7 +337,7 @@ namespace Keys
 
         constexpr const char *SEARCH_CONJ_FONT = "search-conj-font";
         const QFont SEARCH_CONJ_FONT_DEFAULT(
-            "Noto Sans CJK JP",
+            "Meiryo",
 #if defined(Q_OS_MACOS)
                 16
 #else
@@ -347,7 +347,7 @@ namespace Keys
 
         constexpr const char *SEARCH_TAG_FONT = "search-tag-font";
         const QFont SEARCH_TAG_FONT_DEFAULT(
-            "Noto Sans CJK JP",
+            "Meiryo",
 #if defined(Q_OS_MACOS)
                 14,
 #else
@@ -358,7 +358,7 @@ namespace Keys
 
         constexpr const char *SEARCH_GLOSSARY_FONT = "search-glossary-font";
         const QFont SEARCH_GLOSSARY_FONT_DEFAULT(
-            "Noto Sans CJK JP",
+            "Meiryo",
 #if defined(Q_OS_MACOS)
                 14
 #else

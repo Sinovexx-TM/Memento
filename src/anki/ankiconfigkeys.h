@@ -93,10 +93,10 @@ constexpr const char *NEWLINE_REPLACER = "newline-replace";
 constexpr const char *NEWLINE_REPLACER_DEFAULT = "<br>";
 
 constexpr const char *AUDIO_PAD_START = "audio-pad-start";
-constexpr double AUDIO_PAD_START_DEFAULT = 0.0;
+constexpr double AUDIO_PAD_START_DEFAULT = 0.2;
 
 constexpr const char *AUDIO_PAD_END = "audio-pad-end";
-constexpr double AUDIO_PAD_END_DEFAULT = 0.0;
+constexpr double AUDIO_PAD_END_DEFAULT = 0.3;
 
 constexpr const char *AUDIO_NORMALIZE = "audio-normalize";
 constexpr bool AUDIO_NORMALIZE_DEFAULT = false;
