@@ -458,12 +458,12 @@ Dialog {
                     spacing: 8
 
                     FlatButton {
-                        text: qsTr("▶ Play Range")
+                        text: qsTr("▶ Play Selected Range")
                         enabled: !root.loading && root.clipUrl.length > 0
                         onClicked: root.playRange()
                     }
                     FlatButton {
-                        text: qsTr("▶ Play Full")
+                        text: qsTr("▶ Play Full Clip")
                         enabled: !root.loading && root.clipUrl.length > 0
                         onClicked: root.playFull()
                     }
