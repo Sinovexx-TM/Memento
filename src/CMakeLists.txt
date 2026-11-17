@@ -77,6 +77,8 @@ qt_add_qml_module(
         qml/controls/SubtitleListTabButton.qml
         qml/controls/SubtitleText.qml
         qml/controls/TogglLogger.qml
+        qml/controls/SubMatcher.qml
+        qml/util/SubMatch.js
         qml/definition/DefinitionList.qml
         qml/definition/CardBuilderDialog.qml
         qml/definition/DefinitionPage.qml
@@ -166,6 +168,7 @@ target_link_libraries(
     PRIVATE settings
     PRIVATE subtitle
     PRIVATE togglclient
+    PRIVATE subfiles
     PRIVATE utils
 )
 set(

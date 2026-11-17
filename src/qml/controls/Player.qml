@@ -23,6 +23,9 @@ MpvPlayer {
     /* Toggl episode logging; Main.qml asks it before quitting */
     property alias toggl: togglLogger
 
+    /* Subtitle matching; the Subtitle menu opens its folder rename */
+    property alias subMatcher: subMatcher
+
     property point cursorPosition: Qt.point(0, 0)
 
     property bool ocrMode: false
@@ -640,6 +643,11 @@ MpvPlayer {
 
     TogglLogger {
         id: togglLogger
+        player: root
+    }
+
+    SubMatcher {
+        id: subMatcher
         player: root
     }
 

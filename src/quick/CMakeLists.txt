@@ -120,3 +120,16 @@ target_link_libraries(
     PUBLIC Qt6::Network
     PRIVATE utils
 )
+
+add_library(
+    subfiles
+    subfiles.cpp
+    subfiles.h
+)
+target_compile_features(subfiles PRIVATE cxx_std_20)
+target_include_directories(subfiles PRIVATE ${MEMENTO_INCLUDE_DIRS})
+target_compile_options(subfiles PRIVATE ${MEMENTO_COMPILER_FLAGS})
+target_link_libraries(
+    subfiles
+    PUBLIC Qt6::Core
+)

@@ -64,6 +64,7 @@
 #include "quick/keytracker.h"
 #include "quick/paths.h"
 #include "quick/togglclient.h"
+#include "quick/subfiles.h"
 #include "setting/migration.h"
 #include "setting/settings.h"
 #include "state/context.h"
@@ -247,6 +248,7 @@ static void registerQmlTypes(Context &context)
     /* Quick Types */
 
     qmlRegisterType<Clipboard>(MEMENTO_URI, 1, 0, "Clipboard");
+    qmlRegisterType<SubFiles>(MEMENTO_URI, 1, 0, "SubFiles");
     qmlRegisterSingletonInstance<Features>(
         MEMENTO_URI, 1, 0, "Features", new Features(&context)
     );

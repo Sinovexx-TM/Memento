@@ -203,6 +203,13 @@ MenuBar {
         width: Math.max(contentWidth + leftPadding + rightPadding, root.minimumMenuWidth)
 
         Action {
+            text: qsTr("&Match Subtitles in This Folder...")
+            onTriggered: root.player.subMatcher.openFolderMatch()
+        }
+
+        MenuSeparator { }
+
+        Action {
             checkable: true
             checked: MementoSettings.behaviorSubtitlePause
             text: qsTr("&Auto Pause")
