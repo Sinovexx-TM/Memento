@@ -769,15 +769,59 @@ void MalClient::updateMangaCache(int mangaId, const QString &title, const QJsonO
 
 /* Covers */
 
+namespace
+{
+/* MAL's CDN sends JPEG or WebP under the same .jpg link: the file gets
+ * the extension of what it really is, or the image loader may refuse it. */
+QString imageExtension(const QByteArray &head)
+{
+    if (head.startsWith("RIFF") && head.mid(8, 4) == "WEBP")
+    {
+        return "webp";
+    }
+    if (head.startsWith("\x89PNG"))
+    {
+        return "png";
+    }
+    return "jpg";
+}
+
+QString coverBase(const QString &kind, int id)
+{
+    return configFile(QStringLiteral("mal_covers/%1_%2").arg(kind).arg(id));
+}
+}
+
 QString MalClient::cover(const QString &kind, int id, const QString &url)
 {
     if (id <= 0 || (kind != "anime" && kind != "manga"))
     {
         return {};
     }
-    const QString file = configFile(QStringLiteral("mal_covers/%1_%2.jpg").arg(kind).arg(id));
-    if (QFile::exists(file))
+    const QString base = coverBase(kind, id);
+    for (const char *ext : {"jpg", "webp", "png"})
     {
+        const QString file = base + "." + ext;
+        if (!QFile::exists(file))
+        {
+            continue;
+        }
+        /* Older builds saved everything as .jpg: fix the extension once */
+        QFile f(file);
+        if (f.open(QIODevice::ReadOnly))
+        {
+            const QString real = imageExtension(f.read(12));
+            f.close();
+            if (real != ext)
+            {
+                const QString fixed = base + "." + real;
+                QFile::remove(fixed);
+                if (QFile::rename(file, fixed))
+                {
+                    return QUrl::fromLocalFile(fixed).toString();
+                }
+            }
+        }
         return QUrl::fromLocalFile(file).toString();
     }
     const QUrl source(url);
@@ -804,19 +848,27 @@ void MalClient::downloadNextCover()
             reply->deleteLater();
             --m_coverActive;
             const QByteArray data = reply->readAll();
+            bool saved = false;
             if (reply->error() == QNetworkReply::NoError && !data.isEmpty())
             {
                 QDir().mkpath(configFile("mal_covers"));
-                const QString file = configFile(QStringLiteral("mal_covers/%1_%2.jpg").arg(job.kind).arg(job.id));
+                const QString file = coverBase(job.kind, job.id) + "." + imageExtension(data.left(12));
                 QSaveFile out(file);
                 if (out.open(QIODevice::WriteOnly))
                 {
                     out.write(data);
-                    if (out.commit())
+                    saved = out.commit();
+                    if (saved)
                     {
                         emit coverReady(job.kind, job.id, QUrl::fromLocalFile(file).toString());
                     }
                 }
+            }
+            if (!saved)
+            {
+                /* Failed (e.g. too many at once): the row asks again the next
+                 * time it is shown */
+                m_coverRequested.remove(job.kind + "_" + QString::number(job.id));
             }
             downloadNextCover();
         });
