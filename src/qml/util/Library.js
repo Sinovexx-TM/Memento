@@ -58,12 +58,17 @@ function extraLabel(base) {
  * the group and release tags ("Dragon.Ball.Super.Beerus.S01E06.1080p..."
  * -> "Dragon Ball Super Beerus") */
 function looseShowName(fileName) {
+    var movie = SubMatch.movieTitle(fileName);
+    if (movie) {
+        return movie;
+    }
     var base = SubMatch.splitExt(fileName).base;
     var s = base.replace(/^\s*\[[^\]]*\]\s*/, "");
     /* Dots and underscores as spaces, but keep decimals like 12.5 */
     s = s.replace(/[._](?!\d(?:\D|$))/g, " ").replace(/_/g, " ");
     var cuts = [
         /\bS\d{1,2}\s?E\d{1,4}\b/i,
+        /\sE\d{1,4}(?=\s|$)/i,
         /\s-\s*\d{1,4}(?:\.\d)?(?:v\d)?\b/,
         /\[\s*\d{1,4}(?:v\d)?\s*\]/,
         /\b(?:Episode|Ep)\s*\d{1,4}\b/i,
@@ -196,7 +201,8 @@ function buildSeries(folder, files, history, names, media) {
 
         var k = key(f.path);
         var h = history[k] || {};
-        var num = !extra && info.kind === "episode" ? info.ep : null;
+        var movie = SubMatch.movieTitle(fileName);
+        var num = !extra && !movie && info.kind === "episode" ? info.ep : null;
         var label;
         var shortLabel;
         if (num !== null) {
@@ -211,7 +217,7 @@ function buildSeries(folder, files, history, names, media) {
             shortLabel = label;
         } else {
             /* No episode number (a movie): its title without release tags */
-            label = looseShowName(fileName);
+            label = movie || looseShowName(fileName);
             shortLabel = label;
         }
         var dur = h.dur || 0;

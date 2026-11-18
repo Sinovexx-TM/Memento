@@ -1,7 +1,7 @@
 // Run: deno run --allow-read tools/library_test.js [library folder]
 const read = (p) => Deno.readTextFileSync(new URL(p, import.meta.url));
 const SubMatch = new Function(read("../src/qml/util/SubMatch.js").replace(".pragma library", "") +
-  "; return { parseEpisode, splitExt, cleanName };")();
+  "; return { parseEpisode, splitExt, cleanName, movieTitle };")();
 const L = new Function("SubMatch", read("../src/qml/util/Library.js")
   .replace(".pragma library", "").replace(/^\.import.*$/m, "") +
   "; return { key, seriesTitle, buildSeries, nextEpisode, continueList, keysUpTo, formatTime, formatDate, extraLabel, looseShowName, groupLoose };")(SubMatch);
@@ -26,6 +26,11 @@ eq("loose bracket", L.looseShowName("[VCB-Studio] Show Name [03][Ma10p_1080p].mk
 eq("loose movie", L.looseShowName("Kimi no Na wa (2016) [1080p].mkv"), "Kimi no Na wa");
 eq("loose dotted movie", L.looseShowName("Dragon.Ball.Super.Broly.2018.v3.BluRay.1080p.Dual-Audio.FLAC.5.1.Hi10P.x264-JySzE.mkv"), "Dragon Ball Super Broly");
 eq("loose movie no year", L.looseShowName("Akira.1080p.BluRay.x264.mkv"), "Akira");
+eq("movie keeps number", L.looseShowName("Kizumonogatari Part 2 Nekketsu (2016) [BD 1080p].mkv"), "Kizumonogatari Part 2 Nekketsu");
+eq("movie keeps 0", L.looseShowName("Jujutsu Kaisen 0 (2021) [1080p].mkv"), "Jujutsu Kaisen 0");
+eq("not a movie: year + episode", L.looseShowName("Hunter x Hunter (2011) - 148 [1080p].mkv"), "Hunter x Hunter");
+eq("bare E", L.looseShowName("Frieren.Beyond.Journeys.End.E28.1080p.mkv"), "Frieren Beyond Journeys End");
+eq("4-digit episode", L.looseShowName("[Anime Time] One Piece - 1085 [1080p][HEVC 10bit x265].mkv"), "One Piece");
 {
   const g = L.groupLoose("C:/A", [{ rel: "Dragon.Ball.Super.Beerus.S01E06.1080p.AMZN.WEB-DL.JPN.DDP2.0.H.264-ToonsHub.mkv", path: "C:/A/x6.mkv" }, { rel: "Dragon.Ball.Super.Beerus.S01E07.1080p.AMZN.WEB-DL.JPN.DDP2.0.H.264-ToonsHub.mkv", path: "C:/A/x7.mkv" }]);
   eq("loose group", g.length, 1);
