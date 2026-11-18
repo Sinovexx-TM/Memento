@@ -93,7 +93,7 @@ function groupLoose(root, files) {
         var name = looseShowName(files[i].rel);
         var k = name.toLowerCase();
         if (!groups[k]) {
-            groups[k] = { folder: { name: name, path: root + "/:loose:/" + name, loose: true }, files: [] };
+            groups[k] = { folder: { name: name, path: root + "/:loose:/" + name, loose: true, root: root }, files: [] };
             order.push(k);
         }
         groups[k].files.push(files[i]);
@@ -107,6 +107,34 @@ function compareNatural(a, b) {
 
 function formatNumber(n) {
     return String(Math.round(n * 10) / 10);
+}
+
+/*
+ * Watched episodes whose files were deleted (people delete episodes after
+ * watching them). They still count as watched and for the next episode,
+ * but are not listed. Folders: history keys inside the folder. Loose
+ * groups: keys directly in the library folder with the same show name.
+ * Returned like files ({ rel, path, ghost }), path = the (lower case) key.
+ */
+function deletedEpisodes(folder, files, history) {
+    var present = {};
+    for (var i = 0; i < files.length; ++i) {
+        present[key(files[i].path)] = true;
+    }
+    var prefix = key(folder.loose ? folder.root : folder.path) + "/";
+    var showName = folder.loose ? folder.name.toLowerCase() : "";
+    var result = [];
+    for (var k in history) {
+        if (!history[k] || !history[k].done || present[k] || k.indexOf(prefix) !== 0) {
+            continue;
+        }
+        var rel = k.substring(prefix.length);
+        if (folder.loose && (rel.indexOf("/") >= 0 || looseShowName(rel).toLowerCase() !== showName)) {
+            continue;
+        }
+        result.push({ rel: rel, path: k, ghost: true });
+    }
+    return result;
 }
 
 /*
@@ -124,6 +152,7 @@ function buildSeries(folder, files, history, names) {
     names = names || {};
     var sectionsByDir = {};
     var order = [];
+    files = files.concat(deletedEpisodes(folder, files, history));
 
     for (var i = 0; i < files.length; ++i) {
         var f = files[i];
@@ -140,6 +169,9 @@ function buildSeries(folder, files, history, names) {
             }
         }
         var extra = extraDir || info.kind === "extra";
+        if (f.ghost && extra) {
+            continue;
+        }
 
         /* Section: the folder (without its extras subfolder) + extra flag */
         var mainDirs = [];
@@ -181,6 +213,7 @@ function buildSeries(folder, files, history, names) {
         sectionsByDir[sectionKey].episodes.push({
             path: f.path,
             key: k,
+            ghost: !!f.ghost,
             rel: f.rel,
             fileName: fileName,
             label: label,

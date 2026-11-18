@@ -585,6 +585,10 @@ Rectangle {
                     id: section
                     required property var modelData
 
+                    /* Deleted (watched) episodes count but aren't listed */
+                    readonly property var shown: modelData.episodes.filter(e => !e.ghost)
+
+                    visible: shown.length > 0
                     width: seriesColumn.width
                     spacing: 4
 
@@ -599,7 +603,7 @@ Rectangle {
                     }
 
                     Repeater {
-                        model: section.modelData.episodes
+                        model: section.shown
 
                         delegate: Rectangle {
                             id: episodeRow

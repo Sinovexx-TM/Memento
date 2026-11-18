@@ -46,6 +46,18 @@ eq("resume 3", [s.next.num, s.resume], [3, true]);
 s = L.buildSeries({ name: "[G] Show", path: "C:/A/Show" }, files, { [k(4)]: { done: true, watchedDate: 50, date: 50 }, [k(1)]: { pos: 600, dur: 1400, date: 30 } });
 eq("older half-watched ignored", [s.next.num, s.resume], [10, false]);
 s = L.buildSeries({ name: "[G] Show", path: "C:/A/Show" }, files, Object.fromEntries([1,2,3,4,10].map(n => [k(n), { done: true, date: 1 }])));
+{
+  // FMA-style: E1-2 watched then deleted, E3 on disk
+  const h = { [k(1)]: { done: true, watchedDate: 10, date: 10 }, [k(2)]: { done: true, watchedDate: 20, date: 20 } };
+  const s2 = L.buildSeries({ name: "[G] Show", path: "C:/A/Show" }, [F(3), F(4)], h);
+  eq("ghost counts", [s2.watched, s2.total, s2.started, s2.next.num], [2, 4, true, 3]);
+  eq("ghost hidden flag", s2.main.filter(e => e.ghost).map(e => e.num), [1, 2]);
+  const g = L.groupLoose("C:/A", []);
+  eq("loose all deleted -> no group", g.length, 0);
+  const lg = L.groupLoose("C:/A", [{ rel: "Dragon.Ball.Super.Beerus.S01E07.mkv", path: "C:/A/Dragon.Ball.Super.Beerus.S01E07.mkv" }])[0];
+  const ls = L.buildSeries(lg.folder, lg.files, { [L.key("C:/A/Dragon.Ball.Super.Beerus.S01E06.mkv")]: { done: true, date: 5 }, [L.key("C:/A/Other.Show.S01E01.mkv")]: { done: true, date: 5 } });
+  eq("loose ghost", [ls.watched, ls.total, ls.next.num], [1, 2, 7]);
+}
 eq("finished", [s.finished, s.next], [true, null]);
 eq("keysUpTo", L.keysUpTo(s, s.main[2]).length, 3);
 // Seasons + extras
