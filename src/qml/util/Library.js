@@ -66,6 +66,8 @@ function looseShowName(fileName) {
     var s = base.replace(/^\s*\[[^\]]*\]\s*/, "");
     /* Dots and underscores as spaces, but keep decimals like 12.5 */
     s = s.replace(/[._](?!\d(?:\D|$))/g, " ").replace(/_/g, " ");
+    /* Tag groups ([BDRip 1920x1080], (1080p)) go first; [05] / (05) stay */
+    s = s.replace(/\[(?!\s*\d{1,4}(?:v\d)?\s*\])[^\]]*\]|\((?!\s*\d{1,4}(?:v\d)?\s*\))[^)]*\)/g, " ");
     var cuts = [
         /\bS\d{1,2}\s?E\d{1,4}\b/i,
         /\sE\d{1,4}(?=\s|$)/i,
@@ -73,7 +75,8 @@ function looseShowName(fileName) {
         /\[\s*\d{1,4}(?:v\d)?\s*\]/,
         /\b(?:Episode|Ep)\s*\d{1,4}\b/i,
         /第\s*\d{1,4}\s*[話话回]/,
-        /\s\d{1,3}(?:v\d)?(?:\s|$)/,
+        /* A bare number, up to 4 digits (Detective.Conan.1120), but not a year */
+        /\s(?!(?:19|20)\d{2}(?:\s|$))\d{1,4}(?:v\d)?(?:\s|$)/,
         /* No episode number (a movie): cut at the year or the first release tag
          * ("Dragon.Ball.Super.Broly.2018.v3.BluRay.1080p..." -> "Dragon Ball Super Broly") */
         /\s(?:19|20)\d{2}(?=\s|$)/,

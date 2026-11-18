@@ -156,7 +156,7 @@ QtObject {
      * @return {title, episode}; episode is "" when none was found.
      */
     function parseMediaFileName(name) {
-        const tags = /\b(\d{3,4}p|\d{3,4}x\d{3,4}|x26[45]|h\.?26[45]|hevc|av1|avc|aac|flac|opus|ac3|eac3|dts|10bit|8bit|web[- ]?dl|web[- ]?rip|bd[- ]?rip|blu[- ]?ray|bd|dvd|dvdrip|hdtv|raw|multi[- ]?subs?|dual[- ]?audio|repack|proper|batch|uncensored|nf|amzn|cr|crunchyroll)\b/gi;
+        const tags = /\b(\d{3,4}p|\d{3,4}x\d{3,4}|x26[45]|h\.?26[45]|hevc|av1|avc|aac|flac|opus|ac3|eac3|dts|10bit|8bit|web(?:[- ]?(?:dl|rip))?|bd[- ]?rip|blu[- ]?ray|bd|dvd|dvdrip|hdtv|raw|multi[- ]?subs?|dual[- ]?audio|repack|proper|batch|uncensored|nf|amzn|cr|crunchyroll)\b/gi;
         const plain = name.replace(/\.[A-Za-z0-9]{2,4}$/, "");
         /* A movie (year, no episode marker): keep numbers in its title */
         const movie = SubMatch.movieTitle(name);
@@ -196,7 +196,10 @@ QtObject {
             }
         }
         if (show === null) {
-            const m = s.match(/^(.*\D)\s+(\d{1,3})$/);
+            /* "Show 12" or "Detective Conan 1120 1080p WEB": a bare number at
+             * the end once release tags are gone (not a year) */
+            const bare = Utils.cleanMediaText(s.replace(tags, " "));
+            const m = bare.match(/^(.*\D)\s+(?!(?:19|20)\d{2}$)(\d{1,4})$/);
             if (m && m[1].trim().length > 0) {
                 show = m[1];
                 episode = parseInt(m[2]);

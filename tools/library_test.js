@@ -31,6 +31,9 @@ eq("movie keeps 0", L.looseShowName("Jujutsu Kaisen 0 (2021) [1080p].mkv"), "Juj
 eq("not a movie: year + episode", L.looseShowName("Hunter x Hunter (2011) - 148 [1080p].mkv"), "Hunter x Hunter");
 eq("bare E", L.looseShowName("Frieren.Beyond.Journeys.End.E28.1080p.mkv"), "Frieren Beyond Journeys End");
 eq("4-digit episode", L.looseShowName("[Anime Time] One Piece - 1085 [1080p][HEVC 10bit x265].mkv"), "One Piece");
+eq("tag group before cut", L.looseShowName("[Beatrice-Raws] Kizumonogatari I Tekketsu-hen [BDRip 1920x1080 HEVC TrueHD].mkv"), "Kizumonogatari I Tekketsu-hen");
+eq("bare 4-digit", L.looseShowName("Detective.Conan.1120.1080p.WEB.mkv"), "Detective Conan");
+eq("year is not an episode", L.looseShowName("Your.Name.2016.1080p.BluRay.x264.mkv"), "Your Name");
 {
   const g = L.groupLoose("C:/A", [{ rel: "Dragon.Ball.Super.Beerus.S01E06.1080p.AMZN.WEB-DL.JPN.DDP2.0.H.264-ToonsHub.mkv", path: "C:/A/x6.mkv" }, { rel: "Dragon.Ball.Super.Beerus.S01E07.1080p.AMZN.WEB-DL.JPN.DDP2.0.H.264-ToonsHub.mkv", path: "C:/A/x7.mkv" }]);
   eq("loose group", g.length, 1);
