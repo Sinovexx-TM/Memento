@@ -8,6 +8,13 @@ import Ripose.Memento
 MenuBar {
     id: root
 
+    /* Opens the options window (also used by the Library screen) */
+    function openOptions() {
+        optionsWindow.show();
+        optionsWindow.raise();
+        optionsWindow.requestActivate();
+    }
+
     required property MpvPlayer player
 
     /* true if subtitles should be shown, false if they should be hidden */

@@ -36,6 +36,10 @@ Rectangle {
     property string currentKey: ""
     property bool dirty: true
 
+    /* Files of the playlist the Library started; while one of them plays,
+     * mpv's autoload script is off so other shows are not queued */
+    property var playlistKeys: ({})
+
     /* Series keys waiting for an automatic AniList lookup */
     property var posterQueue: []
     property string posterBusy: ""
@@ -121,12 +125,36 @@ Rectangle {
         seriesFlick.contentY = 0;
     }
 
+    /* Plays an episode and queues the rest of its show (main episodes after
+     * it; an extra plays alone). Nothing from other folders is added. */
     function play(episode, fromStart) {
+        const series = root.current && root.current.sections.some(
+            s => s.episodes.some(e => e.key === episode.key)) ? root.current :
+            root.seriesList.find(s => s.sections.some(sec => sec.episodes.some(e => e.key === episode.key)));
+        const following = series && !episode.extra ?
+            series.main.filter(e => e.index > episode.index && !e.ghost).map(e => e.path) : [];
+
+        const keys = {};
+        keys[Library.key(episode.path)] = true;
+        following.forEach(p => keys[Library.key(p)] = true);
+        root.playlistKeys = keys;
+        root.setAutoload(false);
+
         const resume = !fromStart && !episode.done && episode.progress > 0 &&
             (episode.dur <= 0 || episode.pos < episode.dur - 10);
         const options = resume ? [`start=${Math.max(0, Math.floor(episode.pos - 3))}`] : [];
         root.player.controller.loadFile(episode.path, false, options);
+        for (const path of following) {
+            root.player.controller.loadFile(path, true);
+        }
         root.close();
+    }
+
+    /* mpv's autoload.lua (if installed) queues the whole folder, other shows
+     * included; off while the Library's playlist plays */
+    function setAutoload(on) {
+        root.player.controller.command(["change-list", "script-opts", "append",
+                                        on ? "autoload-disabled=no" : "autoload-disabled=yes"]);
     }
 
     function statusText(series) {
@@ -186,6 +214,13 @@ Rectangle {
     Connections {
         target: root.player.state
         function onPathChanged() {
+            const path = root.player.state.path ?? "";
+            if (path.length > 0 && Object.keys(root.playlistKeys).length > 0 &&
+                    !root.playlistKeys[Library.key(path)]) {
+                /* Left the Library's playlist: autoload back on */
+                root.playlistKeys = ({});
+                root.setAutoload(true);
+            }
             if (root.visible && root.hasFile) {
                 root.close();
             }
@@ -328,14 +363,19 @@ Rectangle {
             visible: MalClient.loggedIn
             text: qsTr("MyAnimeList")
             onClicked: {
-                root.close();
-                root.player.malView.open();
+                root.visible = false;
+                root.player.malView.open(true);
             }
         }
 
         FlatButton {
             text: qsTr("Folder…")
             onClicked: folderDialog.open()
+        }
+
+        FlatButton {
+            text: qsTr("Options")
+            onClicked: root.player.openOptions()
         }
 
         FlatButton {

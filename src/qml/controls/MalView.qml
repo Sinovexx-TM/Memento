@@ -16,6 +16,8 @@ Rectangle {
     property string filter: "watching"
     property string error: ""
     property bool loading: false
+    /* Opened from the Library: closing goes back there */
+    property bool fromLibrary: false
 
     readonly property bool hasFile: (root.player.state.path ?? "").length > 0
     readonly property var shown: root.list
@@ -25,7 +27,8 @@ Rectangle {
     visible: false
     color: "#141414"
 
-    function open() {
+    function open(fromLibrary) {
+        root.fromLibrary = !!fromLibrary;
         root.list = MalClient.cachedList();
         root.visible = true;
         root.forceActiveFocus();
@@ -37,7 +40,18 @@ Rectangle {
 
     function close() {
         root.visible = false;
-        root.player.forceActiveFocus();
+        if (root.fromLibrary) {
+            root.fromLibrary = false;
+            root.player.library.open();
+        } else {
+            root.player.forceActiveFocus();
+        }
+    }
+
+    function toLibrary() {
+        root.fromLibrary = false;
+        root.visible = false;
+        root.player.library.open();
     }
 
     function reload() {
@@ -162,7 +176,16 @@ Rectangle {
                 onClicked: MalClient.openUrl("https://myanimelist.net/animelist/" + MalClient.userName)
             }
             FlatButton {
-                text: root.hasFile ? qsTr("✕  Back to video") : qsTr("✕  Close")
+                text: qsTr("Library")
+                onClicked: root.toLibrary()
+            }
+            FlatButton {
+                text: qsTr("Options")
+                onClicked: root.player.openOptions()
+            }
+            FlatButton {
+                text: root.fromLibrary ? qsTr("✕  Back to library") :
+                      root.hasFile ? qsTr("✕  Back to video") : qsTr("✕  Close")
                 onClicked: root.close()
             }
         }

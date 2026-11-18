@@ -54,6 +54,11 @@ MpvPlayer {
 
     property int oscVisibility: Player.OscAuto
 
+    /* Options window, for screens that cover the menu bar */
+    function openOptions() {
+        menu.openOptions();
+    }
+
     /**
      * Shows the OSC with fade in.
      */
