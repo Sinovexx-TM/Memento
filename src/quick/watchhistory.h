@@ -1,6 +1,7 @@
 #ifndef WATCHHISTORY_H
 #define WATCHHISTORY_H
 
+#include <QNetworkAccessManager>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -74,16 +75,39 @@ public:
      */
     Q_INVOKABLE QString localPath(const QUrl &url) const;
 
+    /**
+     * @brief AniList info per series key: { id, title, english, native,
+     * posterUrl, poster (local file URL), none (true = nothing found) }.
+     */
+    Q_INVOKABLE QVariantMap media() const;
+
+    /**
+     * @brief Searches AniList for anime. Emits aniListResults(tag, ...).
+     * Results: [{ id, title, english, native, posterUrl, episodes, year, format }]
+     */
+    Q_INVOKABLE void searchAniList(const QString &query, const QString &tag);
+
+    /**
+     * @brief Saves the AniList entry of a series and downloads its poster.
+     * An empty map clears it; { none: true } = no poster (fallback tile).
+     */
+    Q_INVOKABLE void setMedia(const QString &key, const QVariantMap &media);
+
 signals:
     void changed();
     void libraryRootChanged();
+    void aniListResults(const QString &tag, bool success, const QVariantList &results, const QString &error);
 
 private:
     void load();
     void save();
 
+    void downloadPoster(const QString &key, const QString &url, int id);
+
     QVariantMap m_episodes;
     QVariantMap m_names;
+    QVariantMap m_media;
+    QNetworkAccessManager m_manager;
 };
 
 #endif // WATCHHISTORY_H

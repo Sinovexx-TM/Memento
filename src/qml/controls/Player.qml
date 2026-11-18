@@ -29,6 +29,7 @@ MpvPlayer {
     /* Anime library and watch history */
     property alias library: libraryView
     property alias watchTracker: watchTracker
+    property alias malView: malView
 
     property point cursorPosition: Qt.point(0, 0)
 
@@ -940,6 +941,13 @@ MpvPlayer {
     /* Covers everything else while open */
     LibraryView {
         id: libraryView
+        anchors.fill: parent
+        player: root
+    }
+
+    /* Your MyAnimeList list */
+    MalView {
+        id: malView
         anchors.fill: parent
         player: root
     }

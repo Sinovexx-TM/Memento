@@ -6,9 +6,9 @@ import Ripose.Memento
 
 import "../util/Library.js" as Library
 
-/* Anime library: series in the library folder with clean episode names,
- * what's watched, and "Continue watching" (logic in util/Library.js,
- * history in WatchHistory). Covers the player while open. */
+/* Anime library: series in the library folder with AniList posters, clean
+ * episode names, what's watched, and "Continue watching" (logic in
+ * util/Library.js, history in WatchHistory). Covers the player while open. */
 Rectangle {
     id: root
 
@@ -24,12 +24,22 @@ Rectangle {
 
     readonly property bool hasFile: (root.player.state.path ?? "").length > 0
 
+    /* Sizes follow the window: designed at 1280 px wide */
+    readonly property real scale: Math.min(1.5, Math.max(0.8, root.width / 1280))
+    readonly property real margin: Math.round(54 * root.scale)
+    readonly property real posterWidth: Math.round(175 * root.scale)
+
     property var seriesList: []
     property var continueItems: []
     /* Series page shown; null = home */
     property var current: null
     property string currentKey: ""
     property bool dirty: true
+
+    /* Series keys waiting for an automatic AniList lookup */
+    property var posterQueue: []
+    property string posterBusy: ""
+    property var posterTried: ({})
 
     visible: false
     color: "#141414"
@@ -51,16 +61,17 @@ Rectangle {
     function refresh() {
         const history = WatchHistory.entries();
         const names = WatchHistory.names();
+        const media = WatchHistory.media();
         const list = [];
         for (const folder of WatchHistory.seriesFolders()) {
-            const s = Library.buildSeries(folder, WatchHistory.videosIn(folder.path), history, names);
+            const s = Library.buildSeries(folder, WatchHistory.videosIn(folder.path), history, names, media);
             if (s.sections.length > 0) {
                 list.push(s);
             }
         }
         /* Videos lying directly in the library folder, grouped by show */
         for (const group of Library.groupLoose(WatchHistory.libraryRoot, WatchHistory.looseVideos())) {
-            list.push(Library.buildSeries(group.folder, group.files, history, names));
+            list.push(Library.buildSeries(group.folder, group.files, history, names, media));
         }
         list.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
         root.seriesList = list;
@@ -71,6 +82,37 @@ Rectangle {
             root.currentKey = "";
         }
         root.dirty = false;
+        root.queuePosters();
+    }
+
+    /* Look up posters for series that have none yet (once per session) */
+    function queuePosters() {
+        const queue = root.posterQueue.slice();
+        for (const s of root.seriesList) {
+            if (!s.media && !root.posterTried[s.key] && queue.indexOf(s.key) < 0 && s.key !== root.posterBusy) {
+                queue.push(s.key);
+            }
+        }
+        root.posterQueue = queue;
+        root.nextPoster();
+    }
+
+    function nextPoster() {
+        if (root.posterBusy.length > 0 || root.posterQueue.length === 0) {
+            return;
+        }
+        const key = root.posterQueue[0];
+        root.posterQueue = root.posterQueue.slice(1);
+        const series = root.seriesList.find(s => s.key === key);
+        if (!series) {
+            root.nextPoster();
+            return;
+        }
+        const tried = root.posterTried;
+        tried[key] = true;
+        root.posterTried = tried;
+        root.posterBusy = key;
+        WatchHistory.searchAniList(series.guess, "auto:" + key);
     }
 
     function showSeries(series) {
@@ -91,15 +133,15 @@ Rectangle {
         if (series.total === 0) {
             return qsTr("Extras only");
         }
-        const count = qsTr("%1 of %2 watched").arg(series.watched).arg(series.total);
         if (series.finished) {
-            return qsTr("Finished") + " · " + count;
+            return qsTr("✓ Finished · %1 of %2").arg(series.watched).arg(series.total);
         }
         if (!series.started) {
-            return qsTr("Not started") + " · " + qsTr("%1 episodes").arg(series.total);
+            return series.total === 1 ? qsTr("Not started · 1 episode") :
+                                        qsTr("Not started · %1 episodes").arg(series.total);
         }
-        const last = Library.formatDate(series.lastDate);
-        return last.length > 0 ? count + " · " + qsTr("last watched %1").arg(last) : count;
+        const next = series.next ? " · " + series.next.short + (series.resume ? "" : " " + qsTr("next")) : "";
+        return qsTr("%1 of %2").arg(series.watched).arg(series.total) + next;
     }
 
     function nextText(series) {
@@ -108,9 +150,9 @@ Rectangle {
             return "";
         }
         if (series.resume) {
-            return qsTr("%1 · resume at %2").arg(e.label).arg(Library.formatTime(e.pos));
+            return qsTr("%1 · resume at %2").arg(e.short).arg(Library.formatTime(e.pos));
         }
-        return qsTr("%1 · up next").arg(e.label);
+        return qsTr("%1 · up next").arg(e.short);
     }
 
     Connections {
@@ -125,6 +167,18 @@ Rectangle {
         function onLibraryRootChanged() {
             root.currentKey = "";
             root.refresh();
+        }
+        function onAniListResults(tag, success, results, error) {
+            if (!tag.startsWith("auto:")) {
+                return;
+            }
+            const key = tag.substring(5);
+            root.posterBusy = "";
+            if (success) {
+                /* First result; nothing found = fallback tile */
+                WatchHistory.setMedia(key, results.length > 0 ? results[0] : { none: true });
+            }
+            root.nextPoster();
         }
     }
 
@@ -155,7 +209,9 @@ Rectangle {
         onWheel: wheel => wheel.accepted = true
     }
 
-    /* Small flat button (inline components cannot see ids of this file) */
+    /* Inline components cannot see ids of this file: colours are literal */
+
+    /* Outlined button; primary = white with dark text */
     component FlatButton: Rectangle {
         id: button
 
@@ -164,11 +220,12 @@ Rectangle {
         property int fontSize: 14
         signal clicked()
 
-        implicitWidth: buttonLabel.implicitWidth + 28
-        implicitHeight: 36
-        radius: 4
+        implicitWidth: buttonLabel.implicitWidth + 32
+        implicitHeight: 40
+        radius: 6
         color: primary ? (buttonArea.containsMouse ? "#ffffff" : "#e6e6e6")
-                       : (buttonArea.containsMouse ? "#4d4d4d" : "#333333")
+                       : (buttonArea.containsMouse ? "#2b2b2b" : "transparent")
+        border.color: primary ? "transparent" : (buttonArea.containsMouse ? "#9a9a9a" : "#5a5a5a")
 
         Text {
             id: buttonLabel
@@ -192,14 +249,54 @@ Rectangle {
     component Bar: Rectangle {
         property real value: 0
         property color fill: "#e5383b"
-        implicitHeight: 3
-        radius: 1.5
-        color: "#4d4d4d"
+        implicitHeight: 4
+        radius: 2
+        color: "#3d3d3d"
         Rectangle {
             width: parent.width * Math.max(0, Math.min(1, parent.value))
             height: parent.height
             radius: parent.radius
             color: parent.fill
+        }
+    }
+
+    /* Poster, or a coloured tile with the title when there is none */
+    component Poster: Rectangle {
+        id: poster
+
+        property var series: null
+        property bool showTitle: true
+
+        color: series && series.poster.length > 0 && image.status === Image.Ready ?
+                   "#262a33" : Qt.hsla(Library.tileHue(series ? series.title : ""), 0.45, 0.28, 1)
+        radius: 6
+        clip: true
+
+        Image {
+            id: image
+            anchors.fill: parent
+            source: poster.series ? poster.series.poster : ""
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            sourceSize.width: 400
+            visible: status === Image.Ready
+        }
+
+        Text {
+            visible: image.status !== Image.Ready && poster.showTitle
+            anchors {
+                left: parent.left
+                right: parent.right
+                bottom: parent.bottom
+                margins: 14
+            }
+            text: poster.series ? poster.series.title : ""
+            color: "white"
+            font.pixelSize: Math.max(13, Math.round(poster.width / 9))
+            font.bold: true
+            wrapMode: Text.WordWrap
+            maximumLineCount: 4
+            elide: Text.ElideRight
         }
     }
 
@@ -210,27 +307,30 @@ Rectangle {
             left: parent.left
             right: parent.right
             top: parent.top
-            leftMargin: 40
-            rightMargin: 24
-            topMargin: 18
+            leftMargin: root.margin
+            rightMargin: root.margin
+            topMargin: 26
         }
         spacing: 12
 
         Text {
             text: qsTr("Library")
             color: root.textColor
-            font.pixelSize: 26
+            font.pixelSize: 32
             font.bold: true
         }
 
-        Text {
+        Item {
             Layout.fillWidth: true
-            Layout.alignment: Qt.AlignBottom
-            bottomPadding: 4
-            text: WatchHistory.libraryRoot
-            color: root.faintColor
-            font.pixelSize: 12
-            elide: Text.ElideMiddle
+        }
+
+        FlatButton {
+            visible: MalClient.loggedIn
+            text: qsTr("MyAnimeList")
+            onClicked: {
+                root.close();
+                root.player.malView.open();
+            }
         }
 
         FlatButton {
@@ -240,16 +340,41 @@ Rectangle {
 
         FlatButton {
             text: qsTr("Refresh")
-            onClicked: root.refresh()
+            onClicked: {
+                root.posterTried = ({});
+                root.refresh();
+            }
         }
 
-        FlatButton {
-            text: root.hasFile ? qsTr("✕  Back to video") : qsTr("✕  Close")
-            onClicked: root.close()
+        /* Close: back to the video */
+        Rectangle {
+            implicitWidth: 48
+            implicitHeight: 48
+            radius: 24
+            color: closeArea.containsMouse ? "#4d4d4d" : "#2e2e2e"
+
+            Text {
+                anchors.centerIn: parent
+                text: "✕"
+                color: root.textColor
+                font.pixelSize: 18
+            }
+
+            MouseArea {
+                id: closeArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.close()
+            }
+
+            ToolTip.visible: closeArea.containsMouse
+            ToolTip.delay: 500
+            ToolTip.text: root.hasFile ? qsTr("Back to video") : qsTr("Close")
         }
     }
 
-    /* Home: continue watching + all series */
+    /* Home: continue watching + poster grid */
     Flickable {
         id: homeFlick
         anchors {
@@ -257,7 +382,7 @@ Rectangle {
             right: parent.right
             top: header.bottom
             bottom: parent.bottom
-            topMargin: 16
+            topMargin: 22
         }
         visible: root.current === null
         clip: true
@@ -268,22 +393,22 @@ Rectangle {
 
         Column {
             id: homeColumn
-            x: 40
-            width: homeFlick.width - 80
-            spacing: 14
+            x: root.margin
+            width: homeFlick.width - 2 * root.margin
+            spacing: 16
 
-            /* No folder */
+            /* No folder / nothing found */
             Column {
                 visible: root.seriesList.length === 0
-                spacing: 12
+                spacing: 14
                 topPadding: 40
 
                 Text {
                     text: WatchHistory.libraryRoot.length === 0 ?
                               qsTr("Pick the folder that holds your anime (one folder per series).") :
-                              qsTr("No videos found in this folder.")
+                              qsTr("No videos found in %1.").arg(WatchHistory.libraryRoot)
                     color: root.dimColor
-                    font.pixelSize: 16
+                    font.pixelSize: 17
                 }
 
                 FlatButton {
@@ -297,14 +422,18 @@ Rectangle {
                 visible: root.continueItems.length > 0
                 text: qsTr("Continue watching")
                 color: root.textColor
-                font.pixelSize: 19
+                font.pixelSize: 21
                 font.bold: true
             }
 
             Flow {
+                id: continueFlow
                 visible: root.continueItems.length > 0
                 width: parent.width
-                spacing: 12
+                spacing: 18
+
+                readonly property int columns: Math.max(1, Math.floor((width + spacing) / (380 + spacing)))
+                readonly property real cardWidth: (width - (columns - 1) * spacing) / columns
 
                 Repeater {
                     model: root.continueItems
@@ -313,9 +442,9 @@ Rectangle {
                         id: card
                         required property var modelData
 
-                        width: 300
-                        height: 120
-                        radius: 6
+                        width: continueFlow.cardWidth
+                        height: Math.round(146 * root.scale)
+                        radius: 8
                         color: cardArea.containsMouse ? root.cardHover : root.cardColor
                         border.color: cardArea.containsMouse ? "#5a5a5a" : "transparent"
 
@@ -324,72 +453,94 @@ Rectangle {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.play(card.modelData.next, false)
+                            onClicked: root.showSeries(card.modelData)
+                        }
+
+                        Poster {
+                            id: cardPoster
+                            anchors {
+                                left: parent.left
+                                top: parent.top
+                                bottom: parent.bottom
+                                margins: 12
+                            }
+                            width: height * 2 / 3
+                            series: card.modelData
+                            showTitle: false
                         }
 
                         Column {
                             anchors {
-                                fill: parent
-                                margins: 14
+                                left: cardPoster.right
+                                right: playButton.left
+                                verticalCenter: parent.verticalCenter
+                                leftMargin: 16
+                                rightMargin: 16
                             }
-                            spacing: 6
+                            spacing: 8
 
                             Text {
                                 width: parent.width
                                 text: card.modelData.title
                                 color: root.textColor
-                                font.pixelSize: 16
+                                font.pixelSize: 17
                                 font.bold: true
                                 elide: Text.ElideRight
                             }
 
                             Text {
                                 width: parent.width
-                                text: "▶  " + root.nextText(card.modelData)
+                                text: root.nextText(card.modelData)
                                 color: root.dimColor
-                                font.pixelSize: 13
+                                font.pixelSize: 14
                                 elide: Text.ElideRight
+                            }
+
+                            Bar {
+                                width: parent.width
+                                value: card.modelData.watched / Math.max(1, card.modelData.total)
                             }
 
                             Text {
                                 width: parent.width
                                 text: qsTr("%1 of %2 watched").arg(card.modelData.watched).arg(card.modelData.total)
                                 color: root.faintColor
-                                font.pixelSize: 12
+                                font.pixelSize: 13
                             }
                         }
 
-                        Bar {
+                        /* Play / resume straight away */
+                        Rectangle {
+                            id: playButton
                             anchors {
-                                left: parent.left
                                 right: parent.right
-                                bottom: parent.bottom
-                                margins: 14
+                                verticalCenter: parent.verticalCenter
+                                rightMargin: 12
                             }
-                            value: card.modelData.resume ? card.modelData.next.progress :
-                                   card.modelData.watched / Math.max(1, card.modelData.total)
-                        }
+                            width: 52
+                            height: 52
+                            radius: 26
+                            color: playArea.containsMouse ? "#ff5052" : root.accent
 
-                        /* Open the episode list instead of playing */
-                        Text {
-                            anchors {
-                                right: parent.right
-                                top: parent.top
-                                margins: 10
+                            Text {
+                                anchors.centerIn: parent
+                                anchors.horizontalCenterOffset: 2
+                                text: "▶"
+                                color: "white"
+                                font.pixelSize: 18
                             }
-                            text: qsTr("Episodes")
-                            color: listArea.containsMouse ? root.textColor : root.faintColor
-                            font.pixelSize: 12
-                            font.underline: listArea.containsMouse
 
                             MouseArea {
-                                id: listArea
+                                id: playArea
                                 anchors.fill: parent
-                                anchors.margins: -6
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: root.showSeries(card.modelData)
+                                onClicked: root.play(card.modelData.next, false)
                             }
+
+                            ToolTip.visible: playArea.containsMouse
+                            ToolTip.delay: 500
+                            ToolTip.text: card.modelData.resume ? qsTr("Resume") : qsTr("Play")
                         }
                     }
                 }
@@ -398,88 +549,113 @@ Rectangle {
             Item {
                 visible: root.continueItems.length > 0
                 width: 1
-                height: 10
+                height: 6
             }
 
             Text {
                 visible: root.seriesList.length > 0
                 text: qsTr("All series")
                 color: root.textColor
-                font.pixelSize: 19
+                font.pixelSize: 21
                 font.bold: true
             }
 
-            Repeater {
-                model: root.seriesList
+            Flow {
+                width: parent.width
+                spacing: 20
 
-                delegate: Rectangle {
-                    id: row
-                    required property var modelData
+                Repeater {
+                    model: root.seriesList
 
-                    width: homeColumn.width
-                    height: 66
-                    radius: 6
-                    color: rowArea.containsMouse ? root.cardHover : root.cardColor
+                    delegate: Column {
+                        id: tile
+                        required property var modelData
 
-                    MouseArea {
-                        id: rowArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.showSeries(row.modelData)
-                    }
+                        width: root.posterWidth
+                        spacing: 8
 
-                    Column {
-                        anchors {
-                            left: parent.left
-                            right: nextLabel.left
-                            verticalCenter: parent.verticalCenter
-                            leftMargin: 16
-                            rightMargin: 16
+                        Item {
+                            width: root.posterWidth
+                            height: Math.round(root.posterWidth * 1.5)
+
+                            Poster {
+                                anchors.fill: parent
+                                series: tile.modelData
+                            }
+
+                            /* Watched part of the series */
+                            Bar {
+                                visible: tile.modelData.started && !tile.modelData.finished
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                    bottom: parent.bottom
+                                }
+                                radius: 0
+                                value: tile.modelData.watched / Math.max(1, tile.modelData.total)
+                                color: "#80000000"
+                            }
+
+                            /* Finished */
+                            Rectangle {
+                                visible: tile.modelData.finished
+                                anchors {
+                                    right: parent.right
+                                    top: parent.top
+                                    margins: 10
+                                }
+                                width: 28
+                                height: 28
+                                radius: 14
+                                color: root.doneColor
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    color: "#141414"
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                }
+                            }
+
+                            /* Hover: white outline */
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: -3
+                                radius: 8
+                                color: "transparent"
+                                border.color: "white"
+                                border.width: 2
+                                visible: tileArea.containsMouse
+                            }
+
+                            MouseArea {
+                                id: tileArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.showSeries(tile.modelData)
+                            }
                         }
-                        spacing: 4
 
                         Text {
                             width: parent.width
-                            text: row.modelData.title
+                            text: tile.modelData.title
                             color: root.textColor
-                            font.pixelSize: 16
+                            font.pixelSize: 14
                             font.bold: true
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: 2
                             elide: Text.ElideRight
                         }
 
                         Text {
                             width: parent.width
-                            text: root.statusText(row.modelData)
-                            color: row.modelData.finished ? root.doneColor : root.dimColor
+                            text: root.statusText(tile.modelData)
+                            color: tile.modelData.finished ? root.doneColor : root.dimColor
                             font.pixelSize: 12
                             elide: Text.ElideRight
                         }
-                    }
-
-                    Text {
-                        id: nextLabel
-                        anchors {
-                            right: parent.right
-                            verticalCenter: parent.verticalCenter
-                            rightMargin: 16
-                        }
-                        text: row.modelData.started && row.modelData.next ?
-                                  root.nextText(row.modelData) : ""
-                        color: root.dimColor
-                        font.pixelSize: 13
-                    }
-
-                    Bar {
-                        anchors {
-                            left: parent.left
-                            right: parent.right
-                            bottom: parent.bottom
-                        }
-                        visible: row.modelData.started
-                        value: row.modelData.watched / Math.max(1, row.modelData.total)
-                        fill: row.modelData.finished ? root.doneColor : root.accent
-                        radius: 0
                     }
                 }
             }
@@ -494,7 +670,7 @@ Rectangle {
             right: parent.right
             top: header.bottom
             bottom: parent.bottom
-            topMargin: 8
+            topMargin: 14
         }
         visible: root.current !== null
         clip: true
@@ -505,8 +681,8 @@ Rectangle {
 
         Column {
             id: seriesColumn
-            x: 40
-            width: seriesFlick.width - 80
+            x: root.margin
+            width: seriesFlick.width - 2 * root.margin
             spacing: 10
 
             Text {
@@ -524,57 +700,98 @@ Rectangle {
                 }
             }
 
+            /* Poster + title + actions */
             RowLayout {
                 width: parent.width
-                spacing: 12
+                spacing: 26
 
-                Text {
+                Poster {
+                    Layout.preferredWidth: Math.round(150 * root.scale)
+                    Layout.preferredHeight: Math.round(225 * root.scale)
+                    Layout.alignment: Qt.AlignTop
+                    series: root.current
+                }
+
+                ColumnLayout {
                     Layout.fillWidth: true
-                    text: root.current ? root.current.title : ""
-                    color: root.textColor
-                    font.pixelSize: 30
-                    font.bold: true
-                    elide: Text.ElideRight
-                }
+                    Layout.alignment: Qt.AlignVCenter
+                    spacing: 8
 
-                FlatButton {
-                    text: qsTr("Rename")
-                    onClicked: renameDialog.openFor(root.current)
-                }
-            }
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.current ? root.current.title : ""
+                        color: root.textColor
+                        font.pixelSize: 32
+                        font.bold: true
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                    }
 
-            Text {
-                width: parent.width
-                text: root.current ? (root.current.loose ?
-                                          qsTr("Loose files in the library folder") :
-                                          root.current.folderName) : ""
-                color: root.faintColor
-                font.pixelSize: 12
-                elide: Text.ElideMiddle
-            }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: text.length > 0
+                        text: root.current && root.current.native !== root.current.title ? root.current.native : ""
+                        color: root.dimColor
+                        font.pixelSize: 17
+                        elide: Text.ElideRight
+                    }
 
-            Row {
-                spacing: 16
-                topPadding: 4
-                bottomPadding: 8
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.current ? (root.current.loose ?
+                                                  qsTr("Loose files in the library folder") :
+                                                  root.current.folderName) : ""
+                        color: root.faintColor
+                        font.pixelSize: 12
+                        elide: Text.ElideMiddle
+                    }
 
-                FlatButton {
-                    visible: root.current !== null && root.current.next !== null
-                    primary: true
-                    fontSize: 15
-                    implicitHeight: 40
-                    text: root.current && root.current.next ?
-                              (root.current.resume ?
-                                   qsTr("▶  Resume %1 at %2").arg(root.current.next.short).arg(Library.formatTime(root.current.next.pos)) :
-                                   qsTr("▶  Play %1").arg(root.current.next.short)) : ""
-                    onClicked: root.play(root.current.next, false)
-                }
+                    Text {
+                        Layout.topMargin: 4
+                        text: root.current ? (root.current.total === 0 ? qsTr("Extras only") :
+                                              qsTr("%1 of %2 watched").arg(root.current.watched).arg(root.current.total) +
+                                              (root.current.lastDate > 0 ?
+                                                   " · " + qsTr("last watched %1").arg(Library.formatDate(root.current.lastDate)) : "")) : ""
+                        color: root.current && root.current.finished ? root.doneColor : root.dimColor
+                        font.pixelSize: 14
+                    }
 
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: root.current ? root.statusText(root.current) : ""
-                    color: root.current && root.current.finished ? root.doneColor : root.dimColor
-                    font.pixelSize: 14
+                    Bar {
+                        Layout.preferredWidth: 320
+                        visible: root.current !== null && root.current.total > 0
+                        value: root.current ? root.current.watched / Math.max(1, root.current.total) : 0
+                        fill: root.current && root.current.finished ? "#46d369" : "#e5383b"
+                    }
+
+                    Row {
+                        Layout.topMargin: 8
+                        spacing: 12
+
+                        FlatButton {
+                            visible: root.current !== null && root.current.next !== null
+                            primary: true
+                            fontSize: 15
+                            implicitHeight: 44
+                            text: root.current && root.current.next ?
+                                      (root.current.resume ?
+                                           qsTr("▶  Resume %1 at %2").arg(root.current.next.short).arg(Library.formatTime(root.current.next.pos)) :
+                                           qsTr("▶  Play %1").arg(root.current.next.short)) : ""
+                            onClicked: root.play(root.current.next, false)
+                        }
+
+                        FlatButton {
+                            implicitHeight: 44
+                            text: qsTr("Rename")
+                            onClicked: renameDialog.openFor(root.current)
+                        }
+
+                        FlatButton {
+                            implicitHeight: 44
+                            text: qsTr("Change poster…")
+                            onClicked: posterDialog.openFor(root.current)
+                        }
+                    }
                 }
             }
 
@@ -594,12 +811,18 @@ Rectangle {
 
                     Text {
                         visible: section.modelData.title.length > 0
-                        topPadding: 14
+                        topPadding: 16
                         bottomPadding: 4
                         text: section.modelData.title
                         color: section.modelData.extra ? root.dimColor : root.textColor
-                        font.pixelSize: 18
+                        font.pixelSize: 19
                         font.bold: true
+                    }
+
+                    Item {
+                        visible: section.modelData.title.length === 0
+                        width: 1
+                        height: 12
                     }
 
                     Repeater {
@@ -615,7 +838,7 @@ Rectangle {
 
                             width: section.width
                             height: 50
-                            radius: 4
+                            radius: 6
                             color: episodeArea.containsMouse ? root.cardHover :
                                    episodeRow.isNext ? "#2a1f1f" : root.cardColor
                             border.color: episodeRow.isNext ? "#7a2a2b" : "transparent"
@@ -675,7 +898,6 @@ Rectangle {
                             }
 
                             Text {
-                                id: episodeLabel
                                 anchors {
                                     left: tick.right
                                     right: statusRow.left
@@ -721,7 +943,6 @@ Rectangle {
                                     visible: episodeRow.episode.progress > 0
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: 110
-                                    implicitHeight: 4
                                     value: episodeRow.episode.progress
                                 }
 
@@ -836,6 +1057,182 @@ Rectangle {
                 wrapMode: Label.WordWrap
                 text: qsTr("Leave it empty to go back to the name from the folder.")
                 color: MementoPalette.placeholderText
+            }
+        }
+    }
+
+    /* Pick the AniList entry (poster + Japanese title) for a series */
+    Dialog {
+        id: posterDialog
+
+        property string key: ""
+        property var results: []
+        property string error: ""
+        property bool searching: false
+        property var selected: null
+
+        function openFor(series) {
+            posterDialog.key = series.key;
+            posterDialog.results = [];
+            posterDialog.error = "";
+            posterDialog.selected = null;
+            posterField.text = series.guess;
+            posterDialog.open();
+            posterDialog.search();
+        }
+
+        function search() {
+            posterDialog.searching = true;
+            posterDialog.error = "";
+            WatchHistory.searchAniList(posterField.text, "pick");
+        }
+
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 40, 820)
+        height: Math.min(parent.height - 40, 640)
+        modal: true
+        title: qsTr("Poster from AniList")
+        onAboutToShow: Utils.modalDialogs += 1
+        onClosed: {
+            Utils.modalDialogs -= 1;
+            root.forceActiveFocus();
+        }
+
+        Connections {
+            target: WatchHistory
+            function onAniListResults(tag, success, results, error) {
+                if (tag !== "pick") {
+                    return;
+                }
+                posterDialog.searching = false;
+                posterDialog.results = results;
+                posterDialog.error = success ? (results.length === 0 ? qsTr("Nothing found.") : "") : error;
+            }
+        }
+
+        footer: DialogButtonBox {
+            Button {
+                text: qsTr("Use this")
+                highlighted: true
+                enabled: posterDialog.selected !== null
+                DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+                onClicked: {
+                    WatchHistory.setMedia(posterDialog.key, posterDialog.selected);
+                    posterDialog.close();
+                }
+            }
+            Button {
+                text: qsTr("No poster")
+                DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
+                onClicked: {
+                    WatchHistory.setMedia(posterDialog.key, { none: true });
+                    posterDialog.close();
+                }
+            }
+            Button {
+                text: qsTr("Cancel")
+                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+                onClicked: posterDialog.close()
+            }
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+
+            RowLayout {
+                Layout.fillWidth: true
+                TextField {
+                    id: posterField
+                    Layout.fillWidth: true
+                    onAccepted: posterDialog.search()
+                }
+                Button {
+                    text: posterDialog.searching ? qsTr("Searching…") : qsTr("Search")
+                    enabled: !posterDialog.searching
+                    onClicked: posterDialog.search()
+                }
+            }
+
+            Label {
+                visible: posterDialog.error.length > 0
+                color: "#e06c6c"
+                text: posterDialog.error
+            }
+
+            GridView {
+                id: posterGrid
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                cellWidth: 150
+                cellHeight: 290
+                model: posterDialog.results
+                ScrollBar.vertical: ScrollBar { }
+
+                delegate: Item {
+                    id: result
+                    required property var modelData
+                    width: posterGrid.cellWidth
+                    height: posterGrid.cellHeight
+
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        radius: 6
+                        color: posterDialog.selected && posterDialog.selected.id === result.modelData.id ?
+                                   "#3a2a2a" : (resultArea.containsMouse ? "#2b2b2b" : "transparent")
+                        border.color: posterDialog.selected && posterDialog.selected.id === result.modelData.id ?
+                                          root.accent : "transparent"
+                        border.width: 2
+                    }
+
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 4
+
+                        Image {
+                            width: parent.width
+                            height: width * 1.45
+                            source: result.modelData.posterUrl
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            sourceSize.width: 260
+                        }
+                        Label {
+                            width: parent.width
+                            text: result.modelData.title
+                            font.bold: true
+                            font.pixelSize: 12
+                            wrapMode: Label.WordWrap
+                            maximumLineCount: 2
+                            elide: Label.ElideRight
+                        }
+                        Label {
+                            width: parent.width
+                            opacity: 0.7
+                            font.pixelSize: 11
+                            elide: Label.ElideRight
+                            text: [result.modelData.format, result.modelData.year > 0 ? result.modelData.year : "",
+                                   result.modelData.episodes > 0 ? qsTr("%1 eps").arg(result.modelData.episodes) : ""]
+                                  .filter(x => String(x).length > 0).join(" · ")
+                        }
+                    }
+
+                    MouseArea {
+                        id: resultArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: posterDialog.selected = result.modelData
+                        onDoubleClicked: {
+                            WatchHistory.setMedia(posterDialog.key, result.modelData);
+                            posterDialog.close();
+                        }
+                    }
+                }
             }
         }
     }

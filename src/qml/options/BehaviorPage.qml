@@ -481,6 +481,91 @@ Page {
                     }
                 }
             }
+
+            SettingsBox {
+                id: malBox
+                Layout.preferredWidth: root.preferredWidth
+                Layout.alignment: Qt.AlignHCenter
+                Layout.bottomMargin: root.groupSpacing
+                title: qsTr("MyAnimeList (saved immediately)")
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: root.groupSpacing
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Offer to update MyAnimeList when an episode ends")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            checked: MalClient.enabled
+                            onClicked: MalClient.enabled = checked
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            text: qsTr("Client ID")
+                        }
+                        TextField {
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 300
+                            placeholderText: qsTr("from myanimelist.net/apiconfig")
+                            text: MalClient.clientId
+                            onEditingFinished: MalClient.clientId = text
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: MalClient.loggedIn ?
+                                      qsTr("Logged in as %1").arg(MalClient.userName.length > 0 ? MalClient.userName : "…") :
+                                      qsTr("Not logged in")
+                        }
+                        Button {
+                            Layout.alignment: Qt.AlignRight
+                            visible: !MalClient.loggedIn
+                            enabled: MalClient.clientId.length > 0
+                            text: qsTr("Log in…")
+                            onClicked: MalClient.login()
+                        }
+                        Button {
+                            Layout.alignment: Qt.AlignRight
+                            visible: MalClient.loggedIn
+                            text: qsTr("Log out")
+                            onClicked: MalClient.logout()
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Label.WordWrap
+                        color: MementoPalette.placeholderText
+                        text: [
+                            MalClient.loginStatus,
+                            qsTr("Register the app at myanimelist.net/apiconfig as type \"other\" with redirect URL %1.").arg(MalClient.redirectUri),
+                            MalClient.pendingCount > 0 ? qsTr("%1 update(s) waiting to be sent.").arg(MalClient.pendingCount) : ""
+                        ].filter(x => x.length > 0).join("\n")
+                    }
+                }
+            }
         }
     }
 }

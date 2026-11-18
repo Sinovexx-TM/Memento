@@ -88,6 +88,11 @@ MenuBar {
             onTriggered: root.player.library.open()
         }
 
+        Action {
+            text: qsTr("&MyAnimeList...")
+            onTriggered: root.player.malView.open()
+        }
+
         MenuSeparator { }
 
         Action {

@@ -90,3 +90,11 @@ CMakeLists.txt.user*
 # Toggl API token and unsent entries (normally in the config folder, never commit)
 toggl_token.txt
 toggl_pending.json
+
+# Personal login files (they live in the config folder, never in the repo)
+mal_client_id.txt
+mal_login.json
+mal_matches.json
+mal_list_cache.json
+mal_pending.json
+watch_history.json

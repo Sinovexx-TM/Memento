@@ -145,5 +145,22 @@ target_compile_options(watchhistory PRIVATE ${MEMENTO_COMPILER_FLAGS})
 target_link_libraries(
     watchhistory
     PUBLIC Qt6::Core
+    PUBLIC Qt6::Network
+    PRIVATE utils
+)
+
+add_library(
+    malclient
+    malclient.cpp
+    malclient.h
+)
+target_compile_features(malclient PRIVATE cxx_std_20)
+target_include_directories(malclient PRIVATE ${MEMENTO_INCLUDE_DIRS})
+target_compile_options(malclient PRIVATE ${MEMENTO_COMPILER_FLAGS})
+target_link_libraries(
+    malclient
+    PUBLIC Qt6::Core
+    PUBLIC Qt6::Network
+    PRIVATE Qt6::Gui
     PRIVATE utils
 )

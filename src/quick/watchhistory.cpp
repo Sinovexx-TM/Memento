@@ -5,8 +5,11 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QSaveFile>
 #include <QSettings>
 #include <QStandardPaths>
@@ -33,6 +36,7 @@ qint64 now()
 
 WatchHistory::WatchHistory(QObject *parent) : QObject(parent)
 {
+    m_manager.setTransferTimeout(20000);
     load();
 }
 
@@ -215,6 +219,7 @@ void WatchHistory::load()
     const QJsonObject obj = QJsonDocument::fromJson(file.readAll()).object();
     m_episodes = obj.value("episodes").toObject().toVariantMap();
     m_names = obj.value("names").toObject().toVariantMap();
+    m_media = obj.value("media").toObject().toVariantMap();
 }
 
 void WatchHistory::save()
@@ -223,6 +228,7 @@ void WatchHistory::save()
     obj["version"] = 1;
     obj["episodes"] = QJsonObject::fromVariantMap(m_episodes);
     obj["names"] = QJsonObject::fromVariantMap(m_names);
+    obj["media"] = QJsonObject::fromVariantMap(m_media);
 
     QSaveFile file(historyFile());
     if (!file.open(QIODevice::WriteOnly))
@@ -231,4 +237,130 @@ void WatchHistory::save()
     }
     file.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
     file.commit();
+}
+
+QVariantMap WatchHistory::media() const
+{
+    return m_media;
+}
+
+void WatchHistory::searchAniList(const QString &query, const QString &tag)
+{
+    static const QString gql =
+        "query ($q: String) { Page(perPage: 12) { media(search: $q, type: ANIME) {"
+        " id title { romaji english native } coverImage { large extraLarge }"
+        " episodes seasonYear format } } }";
+    QJsonObject variables;
+    variables["q"] = query.trimmed();
+    QJsonObject body;
+    body["query"] = gql;
+    body["variables"] = variables;
+
+    QNetworkRequest request{QUrl("https://graphql.anilist.co")};
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Accept", "application/json");
+    QNetworkReply *reply = m_manager.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply, tag] {
+        reply->deleteLater();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
+        if (status != 200)
+        {
+            emit aniListResults(tag, false, {}, status > 0 ?
+                QStringLiteral("AniList HTTP %1").arg(status) : reply->errorString());
+            return;
+        }
+        QVariantList results;
+        const QJsonArray list = obj.value("data").toObject().value("Page").toObject()
+            .value("media").toArray();
+        for (const auto &item : list)
+        {
+            const QJsonObject m = item.toObject();
+            const QJsonObject title = m.value("title").toObject();
+            const QJsonObject cover = m.value("coverImage").toObject();
+            QString poster = cover.value("extraLarge").toString();
+            if (poster.isEmpty())
+            {
+                poster = cover.value("large").toString();
+            }
+            results << QVariantMap{
+                {"id", m.value("id").toInt()},
+                {"title", title.value("romaji").toString()},
+                {"english", title.value("english").toString()},
+                {"native", title.value("native").toString()},
+                {"posterUrl", poster},
+                {"episodes", m.value("episodes").toInt()},
+                {"year", m.value("seasonYear").toInt()},
+                {"format", m.value("format").toString()},
+            };
+        }
+        emit aniListResults(tag, true, results, QString());
+    });
+}
+
+void WatchHistory::setMedia(const QString &key, const QVariantMap &media)
+{
+    if (media.isEmpty())
+    {
+        m_media.remove(key);
+    }
+    else
+    {
+        m_media[key] = media;
+    }
+    save();
+    emit changed();
+
+    const QString url = media.value("posterUrl").toString();
+    if (!url.isEmpty())
+    {
+        downloadPoster(key, url, media.value("id").toInt());
+    }
+}
+
+void WatchHistory::downloadPoster(const QString &key, const QString &url, int id)
+{
+    const QString folder = QDir(DirectoryUtils::getConfigDir()).filePath("posters");
+    QDir().mkpath(folder);
+    QString ext = QUrl(url).fileName().section('.', -1).toLower();
+    if (ext.isEmpty() || ext.size() > 4)
+    {
+        ext = "jpg";
+    }
+    const QString file = QDir(folder).filePath(QStringLiteral("anilist_%1.%2").arg(id).arg(ext));
+
+    auto store = [this, key, file] {
+        QVariantMap media = m_media.value(key).toMap();
+        if (media.isEmpty())
+        {
+            return;
+        }
+        media["poster"] = QUrl::fromLocalFile(file).toString();
+        m_media[key] = media;
+        save();
+        emit changed();
+    };
+    if (QFileInfo::exists(file))
+    {
+        store();
+        return;
+    }
+
+    QNetworkReply *reply = m_manager.get(QNetworkRequest{QUrl(url)});
+    connect(reply, &QNetworkReply::finished, this, [reply, file, store] {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError)
+        {
+            return;
+        }
+        QSaveFile out(file);
+        if (out.open(QIODevice::WriteOnly))
+        {
+            out.write(reply->readAll());
+            if (out.commit())
+            {
+                store();
+            }
+        }
+    });
 }

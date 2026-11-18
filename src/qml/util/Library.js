@@ -147,9 +147,10 @@ function deletedEpisodes(folder, files, history) {
  * episode: { path, key, rel, label, short, num, extra, done, pos, dur,
  * date, watchedDate, progress, index }
  */
-function buildSeries(folder, files, history, names) {
+function buildSeries(folder, files, history, names, media) {
     history = history || {};
     names = names || {};
+    media = media || {};
     var sectionsByDir = {};
     var order = [];
     files = files.concat(deletedEpisodes(folder, files, history));
@@ -291,6 +292,10 @@ function buildSeries(folder, files, history, names) {
         path: folder.path,
         folderName: folder.name,
         title: names[folderKey] || (folder.loose ? folder.name : seriesTitle(folder.name)),
+        guess: folder.loose ? folder.name : seriesTitle(folder.name),
+        media: media[folderKey] || null,
+        poster: media[folderKey] && media[folderKey].poster ? media[folderKey].poster : "",
+        native: media[folderKey] && media[folderKey].native ? media[folderKey].native : "",
         loose: !!folder.loose,
         sections: sections,
         main: main,
@@ -357,6 +362,16 @@ function nextEpisode(main) {
         started: started,
         finished: false
     };
+}
+
+/* Hue (0..1) of the fallback tile, from the title; QML: Qt.hsla(hue, ...) */
+function tileHue(title) {
+    var h = 0;
+    var t = String(title || "");
+    for (var i = 0; i < t.length; ++i) {
+        h = (h * 31 + t.charCodeAt(i)) % 360;
+    }
+    return h / 360;
 }
 
 /* Series to show in "Continue watching", most recent first */
