@@ -8,6 +8,13 @@ import Ripose.Memento
 MenuBar {
     id: root
 
+    /* Opens the options window (also used by the Library screen) */
+    function openOptions() {
+        optionsWindow.show();
+        optionsWindow.raise();
+        optionsWindow.requestActivate();
+    }
+
     required property MpvPlayer player
 
     /* true if subtitles should be shown, false if they should be hidden */
@@ -82,6 +89,18 @@ MenuBar {
     DarkMenu {
         title: qsTr("&Media")
         width: Math.max(contentWidth + leftPadding + rightPadding, root.minimumMenuWidth)
+
+        Action {
+            text: qsTr("&Library...")
+            onTriggered: root.player.library.open()
+        }
+
+        Action {
+            text: qsTr("&MyAnimeList...")
+            onTriggered: root.player.malView.open()
+        }
+
+        MenuSeparator { }
 
         Action {
             text: qsTr("&Open File...")

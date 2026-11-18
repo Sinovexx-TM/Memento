@@ -155,12 +155,12 @@ Item {
         IconButton {
             iconName: "replay-10"
             ToolTip.text: qsTr("Back 10 seconds")
-            onClicked: root.player.controller.seek(Math.max(0, root.player.state.timePosition - 10))
+            onClicked: root.player.controller.command(["seek", "-10", "relative+exact"])
         }
         IconButton {
             iconName: "forward-10"
             ToolTip.text: qsTr("Forward 10 seconds")
-            onClicked: root.player.controller.seek(Math.min(root.player.state.duration, root.player.state.timePosition + 10))
+            onClicked: root.player.controller.command(["seek", "10", "relative+exact"])
         }
         IconButton {
             iconName: "skip-next"
@@ -245,12 +245,12 @@ Item {
         IconButton {
             iconName: "fast-rewind"
             ToolTip.text: qsTr("Previous subtitle line")
-            onClicked: root.player.controller.subtitleSeek(-1, true)
+            onClicked: root.player.jumpLine(-1)
         }
         IconButton {
             iconName: "fast-forward"
             ToolTip.text: qsTr("Next subtitle line")
-            onClicked: root.player.controller.subtitleSeek(1, true)
+            onClicked: root.player.jumpLine(1)
         }
         IconButton {
             iconName: "list"

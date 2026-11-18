@@ -3,7 +3,10 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Ripose.Memento
 
-/* Asks once per viewing whether to log the episode to Toggl when it ends.
+import "../util/Mal.js" as Mal
+
+/* Asks once per viewing whether to log the episode to Toggl and/or update
+ * MyAnimeList when it ends.
  * End of episode: start of an "Ending"/"ED" chapter, else the end of the last
  * dialogue line of an external subtitle file, else a percentage of the length.
  * Switching file or quitting past the "late" percentage asks too. */
@@ -45,8 +48,17 @@ Item {
                title.includes("エンディング");
     }
 
-    function isActive() {
+    function togglActive() {
         return TogglClient.enabled && TogglClient.hasToken();
+    }
+
+    function malActive() {
+        return MalClient.enabled && MalClient.loggedIn;
+    }
+
+    /* The prompt is shown when Toggl or MyAnimeList is set up */
+    function isActive() {
+        return root.togglActive() || root.malActive();
     }
 
     function resetViewing() {
@@ -181,6 +193,15 @@ Item {
         return !(root.contentEnd > 0 && pos >= root.contentEnd);
     }
 
+    /* Show and episode for the Toggl description: "Show", "9" (or "SP1") */
+    function labelParts() {
+        const info = Utils.parseMediaInfo(root.path, root.viewTitle);
+        const show = info.title && info.title.length > 0 ? info.title : "";
+        const episode = (info.episode ?? "").trim();
+        const number = episode.match(/^(?:episode\s*)?(\d+(?:\.\d+)?)$/i);
+        return { show: show, episode: number ? number[1] : episode };
+    }
+
     function label() {
         const info = Utils.parseMediaInfo(root.path, root.viewTitle);
         const show = info.title && info.title.length > 0 ? info.title : qsTr("this episode");
@@ -198,7 +219,7 @@ Item {
             return false;
         }
         const seconds = root.secondsToLog();
-        if (seconds <= 0) {
+        if (seconds <= 0 && !root.malActive()) {
             return false;
         }
         root.asked = true;
@@ -294,26 +315,160 @@ Item {
         function onRowsInserted() { root.endDirty = true; }
     }
 
+    MalPicker {
+        id: malPicker
+        onPicked: prompt.computeMal()
+    }
+
+    /* End-of-episode prompt: a Toggl row and a MyAnimeList row, each with a
+     * tick box. Log sends what is ticked, Skip sends nothing. */
     Dialog {
         id: prompt
 
         property string episode: ""
         property int seconds: 0
         property bool editing: false
-        property string error: ""
         property bool pendingReset: false
+
+        /* Toggl */
+        property bool togglShown: false
+        property bool waitToggl: false
+        property string togglError: ""
+
+        /* MyAnimeList */
+        property bool malShown: false
+        property var malList: []
+        property var mal: null
+        property bool waitMal: false
+        property string malError: ""
+        property bool malLoading: false
+
+        readonly property bool sending: prompt.waitToggl || prompt.waitMal
+        readonly property bool failed: prompt.togglError.length > 0 || prompt.malError.length > 0
 
         function openFor(episode, seconds) {
             prompt.episode = episode;
             prompt.seconds = seconds;
             prompt.editing = false;
-            prompt.error = "";
+            prompt.togglError = "";
+            prompt.malError = "";
+            prompt.waitToggl = false;
+            prompt.waitMal = false;
+            prompt.togglShown = root.togglActive() && seconds > 0;
+            prompt.malShown = root.malActive();
+            togglCheck.checked = prompt.togglShown;
+            prompt.mal = null;
+            if (prompt.malShown) {
+                prompt.malList = MalClient.cachedList();
+                prompt.computeMal();
+                prompt.malLoading = true;
+                MalClient.fetchList();
+            }
             prompt.open();
         }
 
-        function send(seconds) {
-            prompt.error = "";
-            TogglClient.logEntry(seconds);
+        /* Which MAL entry this file is and what would be sent */
+        function computeMal() {
+            const info = Utils.parseMediaInfo(root.path, root.viewTitle);
+            const show = (info.title ?? "").trim();
+            const season = Mal.seasonOf(root.path);
+            const fileEp = Mal.episodeOf(root.path);
+            const key = Mal.matchKey(show, season);
+            const saved = MalClient.matches()[key];
+
+            let entry = null;
+            let offset = 0;
+            if (saved) {
+                offset = saved.offset ?? 0;
+                entry = Mal.findEntry(prompt.malList, saved.id) ??
+                    { id: saved.id, title: saved.title, status: "", watched: 0, episodes: saved.episodes ?? 0 };
+            } else {
+                entry = Mal.autoMatch(show, season, prompt.malList);
+            }
+            const ep = fileEp === null || fileEp - offset < 1 ? null : fileEp - offset;
+            const plan = entry ? Mal.planUpdate(entry, ep, Mal.today()) : null;
+            prompt.mal = {
+                show: show,
+                season: season,
+                key: key,
+                entry: entry,
+                saved: !!saved,
+                offset: offset,
+                plan: plan
+            };
+            malCheck.checked = plan !== null && plan.change;
+        }
+
+        function malText() {
+            const m = prompt.mal;
+            if (!m) {
+                return "";
+            }
+            if (m.show.length === 0) {
+                return qsTr("can't tell the show from the file name");
+            }
+            if (!m.entry) {
+                const what = m.season > 1 ? qsTr("%1 (season %2)").arg(m.show).arg(m.season) : m.show;
+                return prompt.malLoading ? qsTr("looking for %1 on your list…").arg(what) :
+                                           qsTr("no match for %1, pick the show").arg(what);
+            }
+            if (!m.plan.change) {
+                return `${m.entry.title} · ${m.plan.note}`;
+            }
+            let text = qsTr("%1 · Episodes %2 → %3").arg(m.entry.title).arg(m.plan.from).arg(m.plan.to);
+            if (m.plan.statusChanged) {
+                text += " · " + (Mal.STATUS_LABELS[m.plan.status] ?? m.plan.status);
+            }
+            return text;
+        }
+
+        function send() {
+            prompt.togglError = "";
+            prompt.malError = "";
+            const doToggl = prompt.togglShown && togglCheck.checked;
+            const doMal = prompt.malShown && malCheck.checked && prompt.mal && prompt.mal.plan &&
+                          prompt.mal.plan.change;
+            if (!doToggl && !doMal) {
+                prompt.finish();
+                return;
+            }
+            if (doMal) {
+                const m = prompt.mal;
+                /* Remember the show -> entry pairing once it has been used */
+                if (!m.saved) {
+                    MalClient.setMatch(m.key, {
+                        id: m.entry.id, title: m.entry.title, offset: 0,
+                        episodes: m.entry.episodes ?? 0, show: m.show, season: m.season
+                    });
+                }
+                prompt.waitMal = true;
+                MalClient.updateEntry(m.entry.id, m.entry.title, m.plan.fields);
+            }
+            if (doToggl) {
+                prompt.waitToggl = true;
+                const parts = root.labelParts();
+                TogglClient.logEntry(prompt.editing ? minutesBox.value * 60 : prompt.seconds,
+                                     parts.show, parts.episode);
+            }
+        }
+
+        function retry() {
+            if (prompt.togglError.length > 0) {
+                prompt.togglError = "";
+                prompt.waitToggl = true;
+                TogglClient.retryPending();
+            }
+            if (prompt.malError.length > 0) {
+                prompt.malError = "";
+                prompt.waitMal = true;
+                MalClient.retryPending();
+            }
+        }
+
+        function checkDone() {
+            if (!prompt.sending && !prompt.failed) {
+                prompt.finish();
+            }
         }
 
         function finish() {
@@ -324,7 +479,7 @@ Item {
         anchors.centerIn: parent
         modal: true
         closePolicy: Popup.NoAutoClose
-        title: qsTr("Toggl")
+        title: qsTr("Finished %1").arg(prompt.episode)
         onAboutToShow: Utils.modalDialogs += 1
         onClosed: {
             Utils.modalDialogs -= 1;
@@ -341,13 +496,39 @@ Item {
         Connections {
             target: TogglClient
             function onFinished(success, error) {
-                if (!prompt.visible) {
+                if (!prompt.visible || !prompt.waitToggl) {
                     return;
                 }
+                prompt.waitToggl = false;
+                if (!success) {
+                    prompt.togglError = error;
+                }
+                prompt.checkDone();
+            }
+        }
+
+        Connections {
+            target: MalClient
+            function onUpdateFinished(success, error) {
+                if (!prompt.visible || !prompt.waitMal) {
+                    return;
+                }
+                prompt.waitMal = false;
+                if (!success) {
+                    prompt.malError = error;
+                }
+                prompt.checkDone();
+            }
+            function onListReady(success, entries, error) {
+                if (!prompt.visible || !prompt.malShown) {
+                    return;
+                }
+                prompt.malLoading = false;
                 if (success) {
-                    prompt.finish();
-                } else {
-                    prompt.error = error;
+                    prompt.malList = entries;
+                }
+                if (!prompt.sending && !prompt.failed) {
+                    prompt.computeMal();
                 }
             }
         }
@@ -355,81 +536,110 @@ Item {
         ColumnLayout {
             spacing: 10
 
-            Label {
-                text: qsTr("Log %1 (%2) to Toggl?")
-                    .arg(prompt.episode)
-                    .arg(Utils.toTimeString(prompt.seconds))
-                font.bold: true
-            }
-
+            /* Toggl row */
             RowLayout {
-                visible: prompt.editing
-                Label { text: qsTr("Minutes") }
+                visible: prompt.togglShown
+                spacing: 8
+
+                CheckBox {
+                    id: togglCheck
+                    enabled: !prompt.sending
+                    text: qsTr("Toggl: log %1").arg(Utils.toTimeString(
+                        prompt.editing ? minutesBox.value * 60 : prompt.seconds))
+                }
                 SpinBox {
                     id: minutesBox
+                    visible: prompt.editing
                     from: 1
                     to: 600
                     editable: true
                 }
-            }
-
-            Label {
-                visible: TogglClient.busy
-                text: qsTr("Sending…")
-            }
-
-            Label {
-                visible: prompt.error.length > 0
-                Layout.maximumWidth: 420
-                wrapMode: Label.WordWrap
-                color: "#e06c6c"
-                text: prompt.error + "\n" +
-                      qsTr("The entry is kept and will be sent with the next one.")
-            }
-
-            RowLayout {
-                Layout.alignment: Qt.AlignRight
-                enabled: !TogglClient.busy
-
-                /* Normal state */
-                Button {
-                    visible: prompt.error.length === 0 && !prompt.editing
-                    text: qsTr("Yes")
-                    highlighted: true
-                    onClicked: prompt.send(prompt.seconds)
+                Label {
+                    visible: prompt.editing
+                    text: qsTr("min")
                 }
                 Button {
-                    visible: prompt.error.length === 0 && !prompt.editing
+                    visible: !prompt.editing
+                    enabled: !prompt.sending
                     text: qsTr("Edit time")
                     onClicked: {
                         minutesBox.value = Math.max(1, Math.round(prompt.seconds / 60));
                         prompt.editing = true;
                     }
                 }
-                Button {
-                    visible: prompt.error.length === 0 && prompt.editing
-                    text: qsTr("Log")
-                    highlighted: true
-                    onClicked: prompt.send(minutesBox.value * 60)
+            }
+
+            /* MyAnimeList row */
+            RowLayout {
+                visible: prompt.malShown
+                spacing: 8
+
+                CheckBox {
+                    id: malCheck
+                    Layout.maximumWidth: 520
+                    enabled: !prompt.sending && prompt.mal !== null && prompt.mal.plan !== null &&
+                             prompt.mal.plan.change
+                    text: qsTr("MyAnimeList: %1").arg(prompt.malText())
                 }
                 Button {
-                    visible: prompt.error.length === 0
-                    text: qsTr("No")
+                    enabled: !prompt.sending && prompt.mal !== null && prompt.mal.show.length > 0
+                    text: prompt.mal && prompt.mal.entry ? qsTr("Change match") : qsTr("Pick show")
+                    onClicked: malPicker.openFor(prompt.mal.key, prompt.mal.show, prompt.mal.season,
+                                                 prompt.malList, MalClient.matches()[prompt.mal.key])
+                }
+            }
+
+            Label {
+                visible: prompt.sending
+                text: qsTr("Sending…")
+            }
+
+            Label {
+                visible: prompt.togglError.length > 0
+                Layout.maximumWidth: 520
+                wrapMode: Label.WordWrap
+                color: "#e06c6c"
+                text: qsTr("Toggl: %1").arg(prompt.togglError) + "\n" +
+                      qsTr("The entry is kept and will be sent with the next one.")
+            }
+
+            Label {
+                visible: prompt.malError.length > 0
+                Layout.maximumWidth: 520
+                wrapMode: Label.WordWrap
+                color: "#e06c6c"
+                text: qsTr("MyAnimeList: %1").arg(prompt.malError) + "\n" +
+                      qsTr("The update is kept and will be sent with the next one.")
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                enabled: !prompt.sending
+
+                /* Normal state */
+                Button {
+                    visible: !prompt.failed
+                    text: qsTr("Log")
+                    highlighted: true
+                    enabled: (prompt.togglShown && togglCheck.checked) ||
+                             (prompt.malShown && malCheck.checked && malCheck.enabled)
+                    onClicked: prompt.send()
+                }
+                Button {
+                    visible: !prompt.failed
+                    text: qsTr("Skip")
                     onClicked: prompt.finish()
                 }
 
                 /* After a failed call */
                 Button {
-                    visible: prompt.error.length > 0
+                    visible: prompt.failed
                     text: qsTr("Retry")
                     highlighted: true
-                    onClicked: {
-                        prompt.error = "";
-                        TogglClient.retryPending();
-                    }
+                    onClicked: prompt.retry()
                 }
                 Button {
-                    visible: prompt.error.length > 0
+                    visible: prompt.failed
                     text: qsTr("Later")
                     onClicked: prompt.finish()
                 }

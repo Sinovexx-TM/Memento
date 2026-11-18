@@ -199,7 +199,8 @@ void MpvController::seek(double time)
     const char *args[]{
         "seek",
         timestr,
-        "absolute",
+        /* Always precise: keyframe seeks snap back on sparse-keyframe web releases */
+        "absolute+exact",
         NULL
     };
     if (::mpv_command_async(handle(), 0, args) < 0)
@@ -370,6 +371,26 @@ void MpvController::setSpeed(double value)
     {
         qWarning("Could not set speed to %f", value);
     }
+}
+
+bool MpvController::command(const QStringList &args)
+{
+    if (args.isEmpty())
+    {
+        return false;
+    }
+    QList<QByteArray> utf8;
+    for (const QString &arg : args)
+    {
+        utf8 << arg.toUtf8();
+    }
+    QList<const char *> argv;
+    for (const QByteArray &arg : utf8)
+    {
+        argv << arg.constData();
+    }
+    argv << nullptr;
+    return ::mpv_command(handle(), argv.data()) >= 0;
 }
 
 void MpvController::showText(const QString &text)

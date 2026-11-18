@@ -5,6 +5,7 @@
 #include <QNetworkAccessManager>
 #include <QObject>
 #include <QString>
+#include <QVariantList>
 
 #include <functional>
 
@@ -26,6 +27,8 @@ class TogglClient : public QObject
     Q_PROPERTY(bool usePlayedTime READ usePlayedTime WRITE setUsePlayedTime NOTIFY optionsChanged)
     Q_PROPERTY(QString description READ description WRITE setDescription NOTIFY optionsChanged)
     Q_PROPERTY(QString project READ project WRITE setProject NOTIFY optionsChanged)
+    Q_PROPERTY(QString tags READ tags WRITE setTags NOTIFY optionsChanged)
+    Q_PROPERTY(double workspaceId READ workspaceId WRITE setWorkspaceId NOTIFY optionsChanged)
     Q_PROPERTY(QString tokenPath READ tokenPath CONSTANT)
     Q_PROPERTY(int pendingCount READ pendingCount NOTIFY pendingChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
@@ -45,6 +48,10 @@ public:
     void setDescription(const QString &value);
     QString project() const;
     void setProject(const QString &value);
+    QString tags() const;
+    void setTags(const QString &value);
+    double workspaceId() const;
+    void setWorkspaceId(double value);
 
     QString tokenPath() const;
     int pendingCount() const;
@@ -56,11 +63,35 @@ public:
     Q_INVOKABLE bool hasToken() const;
 
     /**
+     * @brief Saves the API token to toggl_token.txt (empty removes it).
+     */
+    Q_INVOKABLE void setToken(const QString &token);
+
+    /**
+     * @brief Fetches the user's workspaces. Emits workspacesLoaded.
+     */
+    Q_INVOKABLE void loadWorkspaces();
+
+    /**
+     * @brief Fetches the active projects of the chosen workspace (or the
+     * default one). Emits projectsLoaded.
+     */
+    Q_INVOKABLE void loadProjects();
+
+    /**
+     * @brief The description for an episode: the template with {show} and
+     * {episode} filled in.
+     */
+    Q_INVOKABLE QString describe(const QString &show, const QString &episode) const;
+
+    /**
      * @brief Queue a finished time entry ending now and send all queued
      * entries. Emits finished() when done.
      * @param durationSeconds Length of the entry.
+     * @param show Show name for {show}.
+     * @param episode Episode number or label for {episode}.
      */
-    Q_INVOKABLE void logEntry(int durationSeconds);
+    Q_INVOKABLE void logEntry(int durationSeconds, const QString &show, const QString &episode);
 
     /**
      * @brief Send all queued entries again. Emits finished() when done.
@@ -83,6 +114,10 @@ signals:
      */
     void finished(bool success, const QString &error);
 
+    /* [{ id, name }] */
+    void workspacesLoaded(bool success, const QVariantList &workspaces, const QString &error);
+    void projectsLoaded(bool success, const QVariantList &projects, const QString &error);
+
 private:
     using Callback = std::function<void(bool ok, const QByteArray &body, const QString &error)>;
 
@@ -91,6 +126,7 @@ private:
     void savePending(const QJsonArray &entries);
     void request(const QByteArray &verb, const QString &path, const QByteArray &body, Callback callback);
     void sendNext();
+    void withWorkspace(std::function<void(bool ok, const QString &error)> done);
     void fail(const QString &error);
 
     QNetworkAccessManager m_manager;

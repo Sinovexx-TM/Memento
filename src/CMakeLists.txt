@@ -79,6 +79,12 @@ qt_add_qml_module(
         qml/controls/TogglLogger.qml
         qml/controls/SubMatcher.qml
         qml/util/SubMatch.js
+        qml/util/Library.js
+        qml/controls/LibraryView.qml
+        qml/controls/WatchTracker.qml
+        qml/controls/MalView.qml
+        qml/controls/MalPicker.qml
+        qml/util/Mal.js
         qml/definition/DefinitionList.qml
         qml/definition/CardBuilderDialog.qml
         qml/definition/DefinitionPage.qml
@@ -169,6 +175,8 @@ target_link_libraries(
     PRIVATE subtitle
     PRIVATE togglclient
     PRIVATE subfiles
+    PRIVATE watchhistory
+    PRIVATE malclient
     PRIVATE utils
 )
 set(

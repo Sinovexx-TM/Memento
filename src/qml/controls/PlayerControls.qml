@@ -87,7 +87,7 @@ Rectangle {
             focusPolicy: Qt.NoFocus
             icon.name: MementoSettings.interfaceSystemIcons ? "media-seek-backward" : null
             icon.source: Utils.toImageProvider("fast-rewind", MementoPalette.text)
-            onClicked: root.player.controller.subtitleSeek(-1, true)
+            onClicked: root.player.jumpLine(-1)
         }
 
         ToolButton {
@@ -95,7 +95,7 @@ Rectangle {
             focusPolicy: Qt.NoFocus
             icon.name: MementoSettings.interfaceSystemIcons ? "media-seek-forward" : null
             icon.source: Utils.toImageProvider("fast-forward", MementoPalette.text)
-            onClicked: root.player.controller.subtitleSeek(1, true)
+            onClicked: root.player.jumpLine(1)
         }
 
         ToolButton {

@@ -90,6 +90,38 @@ Item {
         spacing: 8
         visible: root.fits
 
+        /* Back to the Library (position is saved) */
+        Item {
+            width: 44
+            height: 44
+            /* Line the arrow up with the text's left edge */
+            x: -6
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                x: 6
+                text: "←"
+                color: backArea.containsMouse ? "white" : "#d0d0d0"
+                font.pixelSize: Math.max(30, root.height * 0.06)
+                font.weight: Font.Light
+            }
+
+            MouseArea {
+                id: backArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    root.player.watchTracker.flush();
+                    root.player.library.open();
+                }
+            }
+
+            ToolTip.visible: backArea.containsMouse
+            ToolTip.delay: 400
+            ToolTip.text: qsTr("Back to Library")
+        }
+
         Label {
             width: panel.width
             text: qsTr("You're watching")

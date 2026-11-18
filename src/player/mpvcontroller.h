@@ -290,6 +290,14 @@ public:
     Q_INVOKABLE void showText(const QString &text);
 
     /**
+     * @brief Runs an mpv command synchronously.
+     *
+     * @param args The command and its arguments.
+     * @return true on success.
+     */
+    Q_INVOKABLE bool command(const QStringList &args);
+
+    /**
      * @brief Sends a keypress to the player.
      *
      * @param key The Qt key pressed.
