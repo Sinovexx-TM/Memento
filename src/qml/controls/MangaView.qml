@@ -660,7 +660,8 @@ Rectangle {
                 Layout.fillWidth: true
                 wrapMode: Label.WordWrap
                 color: "#8a8a8a"
-                text: qsTr("Reader keys: ← / Space / wheel down = next page, → / wheel up = back, D = one/two pages, Esc = back. " +
+                text: qsTr("Reader: click the black edge on the left or ← = next page, right edge or → = back. " +
+                           "Click the page or use the wheel to zoom, drag to move. D = one/two pages, Esc = back. " +
                            "Reading sessions are saved to %1.").arg(MangaLibrary.sessionsPath)
             }
         }

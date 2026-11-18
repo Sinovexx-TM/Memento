@@ -30,6 +30,14 @@ Rectangle {
     /* Bumped when the session's numbers change, for the top bar */
     property int tick: 0
 
+    /* Zoom: the canvas is scaled by zoom and moved by panX/panY */
+    property real zoom: 1
+    property real panX: 0
+    property real panY: 0
+    readonly property real maxZoom: 5
+    /* Pan to the new page's top-right corner once its image has loaded */
+    property bool alignPending: false
+
     readonly property int idleMs: 5 * 60 * 1000
     readonly property int newSessionMs: 30 * 60 * 1000
 
@@ -72,6 +80,7 @@ Rectangle {
             root.readSet[p] = true;
         }
         root.page = Math.min(Math.max(0, root.entry.page ?? 0), Math.max(0, root.pages.length - 1));
+        root.resetZoom();
         root.visible = true;
         root.forceActiveFocus();
         if ((root.player.state.path ?? "").length > 0 && !root.player.state.pause) {
@@ -219,7 +228,71 @@ Rectangle {
         root.page = target;
         root.activity();
         root.pageChanged_();
+        /* Keep the zoom level, start the new page at its top-right corner */
+        if (root.zoom > 1) {
+            root.alignPending = true;
+            Qt.callLater(root.alignTopRight);
+        }
     }
+
+    /* --- Zoom --- */
+
+    function clampPan() {
+        root.panX = Math.min(0, Math.max(root.width - root.width * root.zoom, root.panX));
+        root.panY = Math.min(0, Math.max(root.height - root.height * root.zoom, root.panY));
+    }
+
+    function resetZoom() {
+        root.zoom = 1;
+        root.panX = 0;
+        root.panY = 0;
+        root.alignPending = false;
+    }
+
+    /* Zoom to `z`, keeping the point (x, y) of the reader where it is */
+    function zoomAt(z, x, y) {
+        z = Math.min(root.maxZoom, Math.max(1, z));
+        const cx = (x - root.panX) / root.zoom;
+        const cy = (y - root.panY) / root.zoom;
+        root.zoom = z;
+        root.panX = x - cx * z;
+        root.panY = y - cy * z;
+        root.clampPan();
+        if (z === 1) {
+            root.panX = 0;
+            root.panY = 0;
+        }
+    }
+
+    function alignTopRight() {
+        if (!root.alignPending || root.zoom <= 1) {
+            return;
+        }
+        /* The right-hand page (first in the row) holds the page's start */
+        const item = pageRepeater.itemAt(0);
+        const rect = item ? item.paintedRect() : null;
+        if (!rect || rect.width <= 0) {
+            return;               /* not loaded yet; the image's onStatusChanged retries */
+        }
+        root.alignPending = false;
+        root.panX = root.width - (rect.x + rect.width) * root.zoom;
+        root.panY = -rect.y * root.zoom;
+        root.clampPan();
+    }
+
+    /* True if the reader point (x, y) is on a page, not the black around it */
+    function onPage(x, y) {
+        for (let i = 0; i < pageRepeater.count; i++) {
+            const item = pageRepeater.itemAt(i);
+            if (item && item.containsReaderPoint(x, y)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    onWidthChanged: clampPan()
+    onHeightChanged: clampPan()
 
     function next() {
         root.go(root.page + root.shownPages.length);
@@ -243,15 +316,9 @@ Rectangle {
         root.activity();
         switch (event.key) {
         case Qt.Key_Left:
-        case Qt.Key_Space:
-        case Qt.Key_PageDown:
-        case Qt.Key_Down:
             root.next();
             break;
         case Qt.Key_Right:
-        case Qt.Key_PageUp:
-        case Qt.Key_Up:
-        case Qt.Key_Backspace:
             root.previous();
             break;
         case Qt.Key_Home:
@@ -276,32 +343,86 @@ Rectangle {
         event.accepted = true;
     }
 
+    /* Click the page: zoom in there / back out. Click the black around it:
+     * left = next page (right to left), right = back. Wheel zooms, drag pans. */
     MouseArea {
+        id: readerMouse
+        property real pressX: 0
+        property real pressY: 0
+        property real startPanX: 0
+        property real startPanY: 0
+        property bool dragged: false
+        property bool overEdge: false
+
         anchors.fill: parent
-        acceptedButtons: Qt.AllButtons
+        acceptedButtons: Qt.LeftButton
         hoverEnabled: true
-        onPositionChanged: root.activity()
+        cursorShape: dragged ? Qt.ClosedHandCursor :
+                     overEdge ? Qt.PointingHandCursor :
+                     root.zoom > 1 ? Qt.OpenHandCursor : Qt.ArrowCursor
+
+        onPressed: mouse => {
+            pressX = mouse.x;
+            pressY = mouse.y;
+            startPanX = root.panX;
+            startPanY = root.panY;
+            dragged = false;
+        }
+        onPositionChanged: mouse => {
+            root.activity();
+            if (pressed && root.zoom > 1) {
+                if (!dragged && Math.abs(mouse.x - pressX) + Math.abs(mouse.y - pressY) > 6) {
+                    dragged = true;
+                    definitionPopup.clearResults();
+                }
+                if (dragged) {
+                    root.panX = startPanX + mouse.x - pressX;
+                    root.panY = startPanY + mouse.y - pressY;
+                    root.clampPan();
+                }
+            }
+            overEdge = !pressed && !root.onPage(mouse.x, mouse.y);
+        }
+        onReleased: mouse => {
+            if (dragged) {
+                dragged = false;
+                return;
+            }
+            root.activity();
+            if (!root.onPage(mouse.x, mouse.y)) {
+                if (mouse.x < root.width / 2) {
+                    root.next();
+                } else {
+                    root.previous();
+                }
+            } else if (root.zoom > 1) {
+                root.resetZoom();
+            } else {
+                root.zoomAt(2.5, mouse.x, mouse.y);
+            }
+            definitionPopup.clearResults();
+            overEdge = !root.onPage(mouse.x, mouse.y);
+        }
         onWheel: wheel => {
             root.activity();
-            if (wheel.angleDelta.y < 0) {
-                root.next();
-            } else if (wheel.angleDelta.y > 0) {
-                root.previous();
-            }
-        }
-        onClicked: mouse => {
-            /* Click the left half: next page (right-to-left), right half: back */
-            if (mouse.button === Qt.BackButton) {
-                root.previous();
-            } else if (mouse.button === Qt.ForwardButton) {
-                root.next();
-            } else if (mouse.x < root.width / 2) {
-                root.next();
-            } else {
-                root.previous();
+            const steps = wheel.angleDelta.y / 120;
+            if (steps !== 0) {
+                definitionPopup.clearResults();
+                root.alignPending = false;
+                root.zoomAt(root.zoom * Math.pow(1.2, steps), wheel.x, wheel.y);
             }
         }
     }
+
+    /* Everything that zooms */
+    Item {
+        id: canvas
+        width: root.width
+        height: root.height
+        transform: [
+            Scale { xScale: root.zoom; yScale: root.zoom },
+            Translate { x: root.panX; y: root.panY }
+        ]
 
     /* Pages, right to left */
     Row {
@@ -311,6 +432,7 @@ Rectangle {
         spacing: 0
 
         Repeater {
+            id: pageRepeater
             model: root.shownPages
 
             delegate: Item {
@@ -325,6 +447,22 @@ Rectangle {
                     (index === 0 ? Image.AlignLeft : Image.AlignRight)
                 required property int index
 
+                /* The drawn page in canvas coordinates (before zoom) */
+                function paintedRect() {
+                    if (pageImage.paintedWidth <= 0) {
+                        return null;
+                    }
+                    const p = pageImage.mapToItem(canvas, pageImage.offX, pageImage.offY);
+                    return Qt.rect(p.x, p.y, pageImage.paintedWidth, pageImage.paintedHeight);
+                }
+
+                function containsReaderPoint(x, y) {
+                    const p = pageImage.mapFromItem(root, x, y);
+                    return pageImage.paintedWidth > 0 &&
+                           p.x >= pageImage.offX && p.x <= pageImage.offX + pageImage.paintedWidth &&
+                           p.y >= pageImage.offY && p.y <= pageImage.offY + pageImage.paintedHeight;
+                }
+
                 Image {
                     id: pageImage
                     anchors.fill: parent
@@ -335,6 +473,11 @@ Rectangle {
                     smooth: true
                     mipmap: true
                     cache: false
+                    onStatusChanged: {
+                        if (status === Image.Ready) {
+                            Qt.callLater(root.alignTopRight);
+                        }
+                    }
 
                     readonly property real srcW: pageItem.pageData && pageItem.pageData.w > 0 ? pageItem.pageData.w : sourceSize.width
                     readonly property real srcH: pageItem.pageData && pageItem.pageData.h > 0 ? pageItem.pageData.h : sourceSize.height
@@ -407,6 +550,7 @@ Rectangle {
             }
         }
     }
+    }
 
     Text {
         anchors.centerIn: parent
@@ -431,6 +575,11 @@ Rectangle {
 
         HoverHandler {
             id: topHover
+        }
+        /* Clicks on the bar don't reach the page */
+        MouseArea {
+            anchors.fill: parent
+            enabled: topBar.opacity > 0
         }
 
         RowLayout {
@@ -467,6 +616,11 @@ Rectangle {
                 font.pixelSize: 13
             }
             ReaderButton {
+                visible: root.zoom > 1
+                text: Math.round(root.zoom * 100) + "%  ·  " + qsTr("Fit")
+                onClicked: root.resetZoom()
+            }
+            ReaderButton {
                 text: root.doublePage ? qsTr("Two pages") : qsTr("One page")
                 onClicked: root.toggleDouble()
             }
@@ -490,6 +644,10 @@ Rectangle {
 
         HoverHandler {
             id: bottomHover
+        }
+        MouseArea {
+            anchors.fill: parent
+            enabled: bottomHover.hovered
         }
 
         Slider {
