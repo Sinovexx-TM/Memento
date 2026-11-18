@@ -10,6 +10,7 @@
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QSet>
 
 #include <functional>
 
@@ -23,6 +24,7 @@
  * - mal_matches.json    show name|season -> { id, title, offset, episodes }
  * - mal_list_cache.json last fetched list (for matching without waiting)
  * - mal_manga_cache.json last fetched manga list
+ * - mal_covers\          small cover pictures of list entries
  * - mal_pending.json    updates that failed, sent again later (anime and manga)
  */
 class MalClient : public QObject
@@ -99,6 +101,15 @@ public:
     Q_INVOKABLE void removeMatch(const QString &key);
 
     /**
+     * @brief Cover picture of a list entry, kept in mal_covers.
+     * @param kind "anime" or "manga"
+     * @param url  the entry's picture (MAL's CDN only)
+     * @return the local file URL, or "" while it downloads (coverReady
+     * follows) or when there is none.
+     */
+    Q_INVOKABLE QString cover(const QString &kind, int id, const QString &url);
+
+    /**
      * @brief Opens a URL in the browser.
      */
     Q_INVOKABLE void openUrl(const QString &url) const;
@@ -114,6 +125,7 @@ signals:
     void entryUpdated(int animeId);
     void mangaListReady(bool success, const QVariantList &entries, const QString &error);
     void mangaEntryUpdated(int mangaId);
+    void coverReady(const QString &kind, int id, const QString &fileUrl);
 
 private:
     using Callback = std::function<void(bool ok, int status, const QByteArray &body, const QString &error)>;
@@ -137,6 +149,17 @@ private:
     static QVariantMap entryFromNode(const QJsonObject &node, const QJsonObject &status);
     static QVariantMap mangaFromNode(const QJsonObject &node, const QJsonObject &status);
     static QString errorText(int status, const QByteArray &body, const QString &fallback);
+    void downloadNextCover();
+
+    struct CoverJob
+    {
+        QString kind;
+        int id;
+        QString url;
+    };
+    QList<CoverJob> m_coverQueue;
+    QSet<QString> m_coverRequested;
+    int m_coverActive{0};
 
     QNetworkAccessManager m_manager;
     QTcpServer m_server4;

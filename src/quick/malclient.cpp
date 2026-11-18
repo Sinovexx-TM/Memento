@@ -29,10 +29,11 @@ constexpr int TIMEOUT_MS = 20000;
 constexpr int LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
 constexpr const char *LIST_FIELDS =
     "list_status{status,num_episodes_watched,start_date,finish_date},"
-    "num_episodes,alternative_titles,media_type";
+    "num_episodes,alternative_titles,media_type,main_picture";
 constexpr const char *MANGA_FIELDS =
     "list_status{status,num_chapters_read,num_volumes_read,start_date,finish_date},"
-    "num_chapters,num_volumes,alternative_titles,media_type";
+    "num_chapters,num_volumes,alternative_titles,media_type,main_picture";
+constexpr int COVER_DOWNLOADS = 4;
 
 QString configFile(const QString &name)
 {
@@ -470,6 +471,7 @@ QVariantMap MalClient::entryFromNode(const QJsonObject &node, const QJsonObject 
         {"synonyms", synonyms},
         {"episodes", node.value("num_episodes").toInt()},
         {"mediaType", node.value("media_type").toString()},
+        {"picture", node.value("main_picture").toObject().value("medium").toString()},
         {"status", status.value("status").toString()},
         {"watched", status.value("num_episodes_watched").toInt()},
         {"startDate", status.value("start_date").toString()},
@@ -516,6 +518,7 @@ QVariantMap MalClient::mangaFromNode(const QJsonObject &node, const QJsonObject 
         {"chapters", node.value("num_chapters").toInt()},
         {"volumes", node.value("num_volumes").toInt()},
         {"mediaType", node.value("media_type").toString()},
+        {"picture", node.value("main_picture").toObject().value("medium").toString()},
         {"status", status.value("status").toString()},
         {"chaptersRead", status.value("num_chapters_read").toInt()},
         {"volumesRead", status.value("num_volumes_read").toInt()},
@@ -762,6 +765,62 @@ void MalClient::updateMangaCache(int mangaId, const QString &title, const QJsonO
         list.append(QJsonObject::fromVariantMap(mangaFromNode(node, status)));
     }
     writeJson("mal_manga_cache.json", QJsonDocument(list));
+}
+
+/* Covers */
+
+QString MalClient::cover(const QString &kind, int id, const QString &url)
+{
+    if (id <= 0 || (kind != "anime" && kind != "manga"))
+    {
+        return {};
+    }
+    const QString file = configFile(QStringLiteral("mal_covers/%1_%2.jpg").arg(kind).arg(id));
+    if (QFile::exists(file))
+    {
+        return QUrl::fromLocalFile(file).toString();
+    }
+    const QUrl source(url);
+    const QString key = kind + "_" + QString::number(id);
+    if (url.isEmpty() || source.scheme() != "https" ||
+        !source.host().endsWith("myanimelist.net") || m_coverRequested.contains(key))
+    {
+        return {};
+    }
+    m_coverRequested.insert(key);
+    m_coverQueue.append({kind, id, url});
+    downloadNextCover();
+    return {};
+}
+
+void MalClient::downloadNextCover()
+{
+    while (m_coverActive < COVER_DOWNLOADS && !m_coverQueue.isEmpty())
+    {
+        const CoverJob job = m_coverQueue.takeLast();   /* newest = rows on screen now */
+        ++m_coverActive;
+        QNetworkReply *reply = m_manager.get(QNetworkRequest(QUrl(job.url)));
+        connect(reply, &QNetworkReply::finished, this, [this, reply, job] {
+            reply->deleteLater();
+            --m_coverActive;
+            const QByteArray data = reply->readAll();
+            if (reply->error() == QNetworkReply::NoError && !data.isEmpty())
+            {
+                QDir().mkpath(configFile("mal_covers"));
+                const QString file = configFile(QStringLiteral("mal_covers/%1_%2.jpg").arg(job.kind).arg(job.id));
+                QSaveFile out(file);
+                if (out.open(QIODevice::WriteOnly))
+                {
+                    out.write(data);
+                    if (out.commit())
+                    {
+                        emit coverReady(job.kind, job.id, QUrl::fromLocalFile(file).toString());
+                    }
+                }
+            }
+            downloadNextCover();
+        });
+    }
 }
 
 /* Matches */

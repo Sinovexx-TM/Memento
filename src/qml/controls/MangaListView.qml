@@ -218,7 +218,7 @@ Rectangle {
                 readonly property var entry: modelData
 
                 width: listView.width - 12
-                height: 58
+                height: 70
                 radius: 6
                 color: rowHover.hovered ? "#2b2b2b" : "#1f1f1f"
 
@@ -226,12 +226,24 @@ Rectangle {
                     id: rowHover
                 }
 
-                ColumnLayout {
+                MalCover {
+                    id: rowCover
                     anchors {
                         left: parent.left
+                        verticalCenter: parent.verticalCenter
+                        leftMargin: 6
+                    }
+                    kind: "manga"
+                    entryId: row.entry.id
+                    picture: row.entry.picture ?? ""
+                }
+
+                ColumnLayout {
+                    anchors {
+                        left: rowCover.right
                         right: controlsRow.left
                         verticalCenter: parent.verticalCenter
-                        leftMargin: 16
+                        leftMargin: 12
                         rightMargin: 16
                     }
                     spacing: 2

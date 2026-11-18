@@ -246,12 +246,6 @@ Rectangle {
                 }
             }
             PageButton {
-                visible: root.undone.length > 0 && !MangaLibrary.running
-                accent: true
-                text: qsTr("Run mokuro on all without text (%1)").arg(root.undone.length)
-                onClicked: runAllDialog.open()
-            }
-            PageButton {
                 text: qsTr("Folder…")
                 onClicked: folderDialog.open()
             }
@@ -265,10 +259,12 @@ Rectangle {
             }
         }
 
-        /* mokuro progress / errors */
+        /* mokuro strip: volumes without text, progress, errors. Kept out of
+         * the header so the big red button is never under the cursor. */
         Rectangle {
             Layout.fillWidth: true
-            visible: MangaLibrary.running || MangaLibrary.lastError.length > 0 || root.mokuroStatus.length > 0
+            visible: MangaLibrary.running || MangaLibrary.lastError.length > 0 ||
+                     root.mokuroStatus.length > 0 || root.undone.length > 0
             implicitHeight: jobColumn.implicitHeight + 20
             radius: 6
             color: "#1f1f1f"
@@ -301,8 +297,21 @@ Rectangle {
                                     (MangaLibrary.jobTotal > 0 ? "  ·  " + MangaLibrary.jobDone + " / " + MangaLibrary.jobTotal : "") +
                                     (left > 0 ? "  ·  " + qsTr("%1 more queued").arg(left) : "");
                             }
-                            return MangaLibrary.lastError.length > 0 ? MangaLibrary.lastError : root.mokuroStatus;
+                            if (MangaLibrary.lastError.length > 0) {
+                                return MangaLibrary.lastError;
+                            }
+                            if (root.mokuroStatus.length > 0) {
+                                return root.mokuroStatus;
+                            }
+                            return root.undone.length === 1 ? qsTr("1 volume has no text yet.") :
+                                qsTr("%1 volumes have no text yet.").arg(root.undone.length);
                         }
+                    }
+                    PageButton {
+                        visible: !MangaLibrary.running && root.undone.length > 0
+                        accent: true
+                        text: qsTr("Run mokuro on all (%1)").arg(root.undone.length)
+                        onClicked: runAllDialog.open()
                     }
                     PageButton {
                         visible: MangaLibrary.running

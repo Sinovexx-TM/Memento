@@ -92,6 +92,7 @@ qt_add_qml_module(
         qml/controls/BackArrow.qml
         qml/controls/PageButton.qml
         qml/controls/MangaListView.qml
+        qml/controls/MalCover.qml
         qml/definition/DefinitionList.qml
         qml/definition/CardBuilderDialog.qml
         qml/definition/DefinitionPage.qml
