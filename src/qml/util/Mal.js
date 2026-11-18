@@ -245,3 +245,42 @@ function today(ms) {
     var two = function (n) { return (n < 10 ? "0" : "") + n; };
     return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate());
 }
+
+/* --- Manga list --- */
+
+var MANGA_STATUS_LABELS = {
+    reading: "Reading",
+    completed: "Completed",
+    on_hold: "On Hold",
+    dropped: "Dropped",
+    plan_to_read: "Plan to Read"
+};
+
+/* Fields for a manual chapter or volume count (−/+1). kind: "chapters" or
+ * "volumes". Reaching the total marks the entry completed (both counts set
+ * to their totals, finish date today); the first count above 0 on a
+ * planned entry marks it reading (start date today). */
+function mangaCount(entry, kind, count, today) {
+    var total = (kind === "chapters" ? entry.chapters : entry.volumes) || 0;
+    count = Math.max(0, total > 0 ? Math.min(total, count) : count);
+    var fields = {};
+    fields[kind === "chapters" ? "num_chapters_read" : "num_volumes_read"] = count;
+    if (total > 0 && count >= total && entry.status !== "completed") {
+        fields.status = "completed";
+        if (entry.chapters > 0) {
+            fields.num_chapters_read = entry.chapters;
+        }
+        if (entry.volumes > 0) {
+            fields.num_volumes_read = entry.volumes;
+        }
+        if (!entry.finishDate) {
+            fields.finish_date = today;
+        }
+    } else if (count > 0 && (entry.status === "plan_to_read" || !entry.status)) {
+        fields.status = "reading";
+        if (!entry.startDate) {
+            fields.start_date = today;
+        }
+    }
+    return fields;
+}

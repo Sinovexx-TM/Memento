@@ -4,7 +4,7 @@ const SubMatch = new Function(read("../src/qml/util/SubMatch.js").replace(".prag
   "; return { parseEpisode, splitExt, cleanName };")();
 const M = new Function("SubMatch", read("../src/qml/util/Mal.js")
   .replace(".pragma library", "").replace(/^\.import.*$/m, "") +
-  "; return { norm, seasonOf, episodeOf, matchKey, similarity, titleSeason, autoMatch, planUpdate, manualCount, today };")(SubMatch);
+  "; return { norm, seasonOf, episodeOf, matchKey, similarity, titleSeason, autoMatch, planUpdate, manualCount, mangaCount, today };")(SubMatch);
 
 let fails = 0;
 function eq(label, got, want) {
@@ -54,5 +54,12 @@ eq("completed rewatch keeps status", M.planUpdate({ status: "completed", watched
 eq("manual +1 to end", M.manualCount(list[2], 50, T), { num_watched_episodes: 50, status: "completed", finish_date: T });
 eq("manual start", M.manualCount(list[8], 1, T), { num_watched_episodes: 1, status: "completed", finish_date: T });
 eq("today", M.today(Date.parse("2026-11-18T09:00")), "2026-11-18");
+
+const mg = { chapters: 83, volumes: 8, status: "plan_to_read", chaptersRead: 0, volumesRead: 0 };
+eq("manga first chapter", M.mangaCount(mg, "chapters", 1, T), { num_chapters_read: 1, status: "reading", start_date: T });
+eq("manga last volume", M.mangaCount({ ...mg, status: "reading", startDate: T }, "volumes", 8, T),
+   { num_volumes_read: 8, status: "completed", num_chapters_read: 83, finish_date: T });
+eq("manga ongoing", M.mangaCount({ chapters: 0, volumes: 0, status: "reading" }, "chapters", 46, T), { num_chapters_read: 46 });
+eq("manga no negative", M.mangaCount({ ...mg, status: "reading" }, "volumes", -1, T), { num_volumes_read: 0 });
 
 console.log(fails ? `\n${fails} FAILED` : "all tests passed");

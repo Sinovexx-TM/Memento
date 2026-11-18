@@ -33,6 +33,7 @@ MpvPlayer {
 
     /* Manga reader (mokuro) and its Toggl prompt */
     property alias mangaView: mangaView
+    property alias mangaListView: mangaListView
     property alias mangaToggl: mangaToggl
 
     property point cursorPosition: Qt.point(0, 0)
@@ -1039,6 +1040,12 @@ MpvPlayer {
 
     MangaView {
         id: mangaView
+        anchors.fill: parent
+        player: root
+    }
+
+    MangaListView {
+        id: mangaListView
         anchors.fill: parent
         player: root
     }

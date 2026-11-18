@@ -20,6 +20,9 @@ Rectangle {
     readonly property var current: root.series.find(s => s.key === root.currentKey) ?? null
     property string mokuroStatus: ""
     property bool mokuroInstalled: true
+    /* Opened from the Library (or with no video): the arrow goes back there */
+    property bool fromLibrary: false
+    readonly property bool hasFile: (root.player.state.path ?? "").length > 0
 
     readonly property var undone: root.volumes.filter(v => !v.mokuro)
     readonly property var continueList: root.volumes
@@ -33,7 +36,13 @@ Rectangle {
     visible: false
     color: "#141414"
 
-    function open() {
+    function open(fromLibrary) {
+        root.fromLibrary = !!fromLibrary;
+        root.show();
+    }
+
+    /* Show again without changing where the arrow goes (back from the Manga list) */
+    function show() {
         root.refresh();
         root.visible = true;
         root.forceActiveFocus();
@@ -44,7 +53,19 @@ Rectangle {
 
     function close() {
         root.visible = false;
-        root.player.library.open();
+        if (root.fromLibrary || !root.hasFile) {
+            root.player.library.open();
+        } else {
+            root.player.forceActiveFocus();
+        }
+    }
+
+    function back() {
+        if (root.currentKey.length > 0) {
+            root.currentKey = "";
+        } else {
+            root.close();
+        }
     }
 
     function refresh() {
@@ -108,13 +129,7 @@ Rectangle {
         }
     }
 
-    Keys.onEscapePressed: {
-        if (root.currentKey.length > 0) {
-            root.currentKey = "";
-        } else {
-            root.close();
-        }
-    }
+    Keys.onEscapePressed: root.back()
 
     MouseArea {
         anchors.fill: parent
@@ -123,39 +138,13 @@ Rectangle {
         onWheel: wheel => wheel.accepted = true
     }
 
-    component FlatButton: Rectangle {
-        id: button
-        property string text: ""
-        property bool active: false
-        signal clicked()
-        implicitWidth: label.implicitWidth + 24
-        implicitHeight: 32
-        radius: 4
-        color: active ? "#e6e6e6" : (area.containsMouse ? "#4d4d4d" : "#2e2e2e")
-        opacity: enabled ? 1 : 0.4
-        Text {
-            id: label
-            anchors.centerIn: parent
-            text: button.text
-            color: button.active ? "#141414" : "#f2f2f2"
-            font.pixelSize: 13
-            font.bold: button.active
-        }
-        MouseArea {
-            id: area
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: button.clicked()
-        }
-    }
-
     /* A cover with a progress strip */
     component Cover: Item {
         id: cover
         property string source: ""
         property real progress: 0
-        property bool hasText: true
+        /* Corner label: "no text", "3 vols without text", or empty */
+        property string badge: ""
         signal clicked()
         implicitWidth: 150
         implicitHeight: 225
@@ -192,7 +181,7 @@ Rectangle {
                 }
             }
             Rectangle {
-                visible: !cover.hasText
+                visible: cover.badge.length > 0
                 anchors {
                     top: parent.top
                     right: parent.right
@@ -205,7 +194,7 @@ Rectangle {
                 Text {
                     id: noText
                     anchors.centerIn: parent
-                    text: qsTr("no text")
+                    text: cover.badge
                     color: "#f2f2f2"
                     font.pixelSize: 11
                 }
@@ -224,7 +213,7 @@ Rectangle {
         anchors {
             fill: parent
             leftMargin: 40
-            rightMargin: 24
+            rightMargin: 40
             topMargin: 18
             bottomMargin: 12
         }
@@ -235,10 +224,10 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 12
 
-            FlatButton {
-                visible: root.currentKey.length > 0
-                text: qsTr("←")
-                onClicked: root.currentKey = ""
+            BackArrow {
+                tip: root.currentKey.length > 0 ? qsTr("All series") :
+                     root.fromLibrary || !root.hasFile ? qsTr("Back to Library") : qsTr("Back to video")
+                onClicked: root.back()
             }
             Text {
                 Layout.fillWidth: true
@@ -248,33 +237,31 @@ Rectangle {
                 font.bold: true
                 elide: Text.ElideRight
             }
-            FlatButton {
+            PageButton {
+                visible: MalClient.loggedIn
+                text: qsTr("Manga list")
+                onClicked: {
+                    root.visible = false;
+                    root.player.mangaListView.open();
+                }
+            }
+            PageButton {
                 visible: root.undone.length > 0 && !MangaLibrary.running
+                accent: true
                 text: qsTr("Run mokuro on all without text (%1)").arg(root.undone.length)
                 onClicked: runAllDialog.open()
             }
-            FlatButton {
-                text: qsTr("Anime")
-                onClicked: root.close()
-            }
-            FlatButton {
+            PageButton {
                 text: qsTr("Folder…")
                 onClicked: folderDialog.open()
             }
-            FlatButton {
+            PageButton {
                 text: qsTr("Settings")
                 onClicked: settingsDialog.open()
             }
-            FlatButton {
+            PageButton {
                 text: qsTr("Refresh")
                 onClicked: root.refresh()
-            }
-            FlatButton {
-                text: (root.player.state.path ?? "").length > 0 ? qsTr("✕  Back to video") : qsTr("✕  Close")
-                onClicked: {
-                    root.visible = false;
-                    root.player.forceActiveFocus();
-                }
             }
         }
 
@@ -317,12 +304,12 @@ Rectangle {
                             return MangaLibrary.lastError.length > 0 ? MangaLibrary.lastError : root.mokuroStatus;
                         }
                     }
-                    FlatButton {
+                    PageButton {
                         visible: MangaLibrary.running
                         text: qsTr("Cancel")
                         onClicked: MangaLibrary.cancelMokuro()
                     }
-                    FlatButton {
+                    PageButton {
                         visible: !MangaLibrary.running && (MangaLibrary.lastError.indexOf("install") >= 0 || !root.mokuroInstalled)
                         text: qsTr("Install mokuro")
                         onClicked: MangaLibrary.installMokuro()
@@ -393,7 +380,7 @@ Rectangle {
                             Cover {
                                 source: modelData.cover
                                 progress: root.progressValue(modelData)
-                                hasText: modelData.mokuro.length > 0
+                                badge: modelData.mokuro.length > 0 ? "" : qsTr("no text")
                                 onClicked: root.read(modelData)
                             }
                             Text {
@@ -435,7 +422,17 @@ Rectangle {
                                     const done = modelData.volumes.filter(v => (root.history[v.path] ?? {}).done).length;
                                     return done / Math.max(1, modelData.volumes.length);
                                 }
-                                hasText: modelData.volumes.every(v => v.mokuro.length > 0)
+                                badge: {
+                                    const missing = modelData.volumes.filter(v => v.mokuro.length === 0).length;
+                                    if (missing === 0) {
+                                        return "";
+                                    }
+                                    if (missing === modelData.volumes.length) {
+                                        return qsTr("no text");
+                                    }
+                                    return missing === 1 ? qsTr("1 vol without text") :
+                                                           qsTr("%1 vols without text").arg(missing);
+                                }
                                 onClicked: root.currentKey = modelData.key
                             }
                             Text {
@@ -560,13 +557,13 @@ Rectangle {
                         rightMargin: 12
                     }
                     spacing: 8
-                    FlatButton {
+                    PageButton {
                         visible: row.modelData.mokuro.length === 0
                         enabled: root.jobText(row.modelData).length === 0
                         text: qsTr("Run mokuro")
                         onClicked: MangaLibrary.runMokuro([row.modelData.path])
                     }
-                    FlatButton {
+                    PageButton {
                         text: (root.history[row.modelData.path] ?? {}).page > 0 ? qsTr("Continue") : qsTr("Read")
                         active: true
                         onClicked: root.read(row.modelData)

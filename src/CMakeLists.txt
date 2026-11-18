@@ -89,6 +89,9 @@ qt_add_qml_module(
         qml/controls/MangaView.qml
         qml/controls/MangaReader.qml
         qml/controls/MangaToggl.qml
+        qml/controls/BackArrow.qml
+        qml/controls/PageButton.qml
+        qml/controls/MangaListView.qml
         qml/definition/DefinitionList.qml
         qml/definition/CardBuilderDialog.qml
         qml/definition/DefinitionPage.qml

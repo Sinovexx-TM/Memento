@@ -590,8 +590,8 @@ Rectangle {
             }
             spacing: 10
 
-            ReaderButton {
-                text: qsTr("← Manga")
+            BackArrow {
+                tip: qsTr("Back to Manga")
                 onClicked: root.close()
             }
             Text {

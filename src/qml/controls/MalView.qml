@@ -40,7 +40,7 @@ Rectangle {
 
     function close() {
         root.visible = false;
-        if (root.fromLibrary) {
+        if (root.fromLibrary || !root.hasFile) {
             root.fromLibrary = false;
             root.player.library.open();
         } else {
@@ -56,7 +56,7 @@ Rectangle {
 
     function reload() {
         if (!MalClient.loggedIn) {
-            root.error = qsTr("Not logged in. Options > Behavior > MyAnimeList.");
+            root.error = qsTr("Not logged in. Settings > Behavior > MyAnimeList.");
             return;
         }
         root.loading = true;
@@ -102,39 +102,11 @@ Rectangle {
         onWheel: wheel => wheel.accepted = true
     }
 
-    /* Flat button (inline components cannot see ids of this file) */
-    component FlatButton: Rectangle {
-        id: button
-        property string text: ""
-        property bool active: false
-        signal clicked()
-        implicitWidth: label.implicitWidth + 24
-        implicitHeight: 32
-        radius: 4
-        color: active ? "#e6e6e6" : (area.containsMouse ? "#4d4d4d" : "#2e2e2e")
-        opacity: enabled ? 1 : 0.4
-        Text {
-            id: label
-            anchors.centerIn: parent
-            text: button.text
-            color: button.active ? "#141414" : "#f2f2f2"
-            font.pixelSize: 13
-            font.bold: button.active
-        }
-        MouseArea {
-            id: area
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: button.clicked()
-        }
-    }
-
     ColumnLayout {
         anchors {
             fill: parent
             leftMargin: 40
-            rightMargin: 24
+            rightMargin: 40
             topMargin: 18
             bottomMargin: 12
         }
@@ -144,8 +116,12 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 12
 
+            BackArrow {
+                tip: root.fromLibrary || !root.hasFile ? qsTr("Back to Library") : qsTr("Back to video")
+                onClicked: root.close()
+            }
             Text {
-                text: qsTr("MyAnimeList")
+                text: qsTr("Anime list")
                 color: "#f2f2f2"
                 font.pixelSize: 26
                 font.bold: true
@@ -162,32 +138,27 @@ Rectangle {
                 font.pixelSize: 12
                 elide: Text.ElideRight
             }
-            FlatButton {
+            PageButton {
                 visible: MalClient.pendingCount > 0 && !MalClient.busy
                 text: qsTr("Retry")
                 onClicked: { root.error = ""; MalClient.retryPending(); }
             }
-            FlatButton {
+            PageButton {
                 text: qsTr("Refresh")
                 onClicked: root.reload()
             }
-            FlatButton {
+            PageButton {
                 text: qsTr("Open MAL")
                 onClicked: MalClient.openUrl("https://myanimelist.net/animelist/" + MalClient.userName)
             }
-            FlatButton {
+            PageButton {
                 visible: !root.fromLibrary
                 text: qsTr("Library")
                 onClicked: root.toLibrary()
             }
-            FlatButton {
-                text: qsTr("Options")
+            PageButton {
+                text: qsTr("Settings")
                 onClicked: root.player.openOptions()
-            }
-            FlatButton {
-                text: root.fromLibrary ? qsTr("✕  Back to library") :
-                      root.hasFile ? qsTr("✕  Back to video") : qsTr("✕  Close")
-                onClicked: root.close()
             }
         }
 
@@ -202,7 +173,7 @@ Rectangle {
                     { key: "dropped", label: qsTr("Dropped") },
                     { key: "all", label: qsTr("All") }
                 ]
-                delegate: FlatButton {
+                delegate: PageButton {
                     required property var modelData
                     active: root.filter === modelData.key
                     text: modelData.label + " " +
@@ -290,24 +261,24 @@ Rectangle {
                         color: "#f2f2f2"
                         font.pixelSize: 15
                     }
-                    FlatButton {
+                    PageButton {
                         text: "−"
                         enabled: row.entry.watched > 0 && !MalClient.busy
                         onClicked: root.send(row.entry, Mal.manualCount(row.entry, row.entry.watched - 1, Mal.today()))
                     }
-                    FlatButton {
+                    PageButton {
                         text: "+1"
                         active: true
                         enabled: !MalClient.busy &&
                                  (row.entry.episodes === 0 || row.entry.watched < row.entry.episodes)
                         onClicked: root.send(row.entry, Mal.manualCount(row.entry, row.entry.watched + 1, Mal.today()))
                     }
-                    FlatButton {
+                    PageButton {
                         text: qsTr("Status ▾")
                         enabled: !MalClient.busy
                         onClicked: statusMenu.openFor(row.entry)
                     }
-                    FlatButton {
+                    PageButton {
                         text: "↗"
                         onClicked: MalClient.openUrl("https://myanimelist.net/anime/" + row.entry.id)
                     }

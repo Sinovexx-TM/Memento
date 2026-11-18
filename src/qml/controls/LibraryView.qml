@@ -26,7 +26,7 @@ Rectangle {
 
     /* Sizes follow the window: designed at 1280 px wide */
     readonly property real scale: Math.min(1.5, Math.max(0.8, root.width / 1280))
-    readonly property real margin: Math.round(54 * root.scale)
+    readonly property real margin: 40
     readonly property real posterWidth: Math.round(175 * root.scale)
 
     property var seriesList: []
@@ -249,39 +249,6 @@ Rectangle {
 
     /* Inline components cannot see ids of this file: colours are literal */
 
-    /* Outlined button; primary = white with dark text */
-    component FlatButton: Rectangle {
-        id: button
-
-        property string text: ""
-        property bool primary: false
-        property int fontSize: 14
-        signal clicked()
-
-        implicitWidth: buttonLabel.implicitWidth + 32
-        implicitHeight: 40
-        radius: 6
-        color: primary ? (buttonArea.containsMouse ? "#ffffff" : "#e6e6e6")
-                       : (buttonArea.containsMouse ? "#2b2b2b" : "transparent")
-        border.color: primary ? "transparent" : (buttonArea.containsMouse ? "#9a9a9a" : "#5a5a5a")
-
-        Text {
-            id: buttonLabel
-            anchors.centerIn: parent
-            text: button.text
-            color: button.primary ? "#141414" : "#f2f2f2"
-            font.pixelSize: button.fontSize
-            font.bold: button.primary
-        }
-
-        MouseArea {
-            id: buttonArea
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: button.clicked()
-        }
-    }
 
     /* Thin progress bar */
     component Bar: Rectangle {
@@ -347,14 +314,21 @@ Rectangle {
             top: parent.top
             leftMargin: root.margin
             rightMargin: root.margin
-            topMargin: 26
+            topMargin: 18
         }
         spacing: 12
+
+        /* Series page: back to all series; home: back to the video */
+        BackArrow {
+            visible: root.current !== null || root.hasFile
+            tip: root.current !== null ? qsTr("All series") : qsTr("Back to video")
+            onClicked: root.current !== null ? root.showSeries(null) : root.close()
+        }
 
         Text {
             text: qsTr("Library")
             color: root.textColor
-            font.pixelSize: 32
+            font.pixelSize: 26
             font.bold: true
         }
 
@@ -362,66 +336,39 @@ Rectangle {
             Layout.fillWidth: true
         }
 
-        FlatButton {
+        PageButton {
             visible: MalClient.loggedIn
-            text: qsTr("MyAnimeList")
+            text: qsTr("Anime list")
             onClicked: {
                 root.visible = false;
                 root.player.malView.open(true);
             }
         }
 
-        FlatButton {
+        PageButton {
             text: qsTr("Manga")
             onClicked: {
                 root.visible = false;
-                root.player.mangaView.open();
+                root.player.mangaView.open(true);
             }
         }
 
-        FlatButton {
+        PageButton {
             text: qsTr("Folder…")
             onClicked: folderDialog.open()
         }
 
-        FlatButton {
-            text: qsTr("Options")
+        PageButton {
+            text: qsTr("Settings")
             onClicked: root.player.openOptions()
         }
 
-        FlatButton {
+        PageButton {
             text: qsTr("Refresh")
             onClicked: {
                 root.posterTried = ({});
                 root.refresh();
             }
-        }
-
-        /* Close: back to the video */
-        Rectangle {
-            implicitWidth: 48
-            implicitHeight: 48
-            radius: 24
-            color: closeArea.containsMouse ? "#4d4d4d" : "#2e2e2e"
-
-            Text {
-                anchors.centerIn: parent
-                text: "✕"
-                color: root.textColor
-                font.pixelSize: 18
-            }
-
-            MouseArea {
-                id: closeArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.close()
-            }
-
-            ToolTip.visible: closeArea.containsMouse
-            ToolTip.delay: 500
-            ToolTip.text: root.hasFile ? qsTr("Back to video") : qsTr("Close")
         }
     }
 
@@ -462,8 +409,8 @@ Rectangle {
                     font.pixelSize: 17
                 }
 
-                FlatButton {
-                    primary: true
+                PageButton {
+                    active: true
                     text: qsTr("Choose folder…")
                     onClicked: folderDialog.open()
                 }
@@ -736,21 +683,6 @@ Rectangle {
             width: seriesFlick.width - 2 * root.margin
             spacing: 10
 
-            Text {
-                text: "‹  " + qsTr("All series")
-                color: backArea.containsMouse ? root.textColor : root.dimColor
-                font.pixelSize: 14
-
-                MouseArea {
-                    id: backArea
-                    anchors.fill: parent
-                    anchors.margins: -6
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.showSeries(null)
-                }
-            }
-
             /* Poster + title + actions */
             RowLayout {
                 width: parent.width
@@ -819,9 +751,9 @@ Rectangle {
                         Layout.topMargin: 8
                         spacing: 12
 
-                        FlatButton {
+                        PageButton {
                             visible: root.current !== null && root.current.next !== null
-                            primary: true
+                            active: true
                             fontSize: 15
                             implicitHeight: 44
                             text: root.current && root.current.next ?
@@ -831,13 +763,13 @@ Rectangle {
                             onClicked: root.play(root.current.next, false)
                         }
 
-                        FlatButton {
+                        PageButton {
                             implicitHeight: 44
                             text: qsTr("Rename")
                             onClicked: renameDialog.openFor(root.current)
                         }
 
-                        FlatButton {
+                        PageButton {
                             implicitHeight: 44
                             text: qsTr("Change poster…")
                             onClicked: posterDialog.openFor(root.current)
