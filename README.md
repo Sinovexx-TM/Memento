@@ -10,7 +10,7 @@ for your anime, a manga reader with the same hover lookups (via
 [mokuro](https://github.com/kha-white/mokuro)), MyAnimeList and Toggl
 tracking, and a card builder. Windows builds only.
 
-![Hovering a subtitle word opens the dictionary popup](docs/images/player-popup.png)
+![Hovering a subtitle word opens the dictionary popup](design/screenshots/player-popup.png)
 
 > Based on Memento by ripose-jp, licensed under the
 > [GNU GPL v2](LICENSE). This fork is not affiliated with the original
@@ -43,7 +43,7 @@ page.
 
 ### Watching
 
-![Player controls](docs/images/controls.png)
+![Player controls](design/screenshots/controls.png)
 
 - **Netflix-style controls**: thin red progress bar with chapter marks and
   hover time; play/pause, previous/next file, back/forward 10 s, volume,
@@ -54,7 +54,7 @@ page.
   watching (show, episode, file name), with a ← back to the Library. Pauses
   from hovering subtitles don't trigger it.
 
-  ![Pause screen](docs/images/pause-screen.png)
+  ![Pause screen](design/screenshots/pause-screen.png)
 
 - **Arrow keys**: ← / → jump a few seconds (you choose how many) or one
   subtitle line (Settings > Behavior). Seeking is frame-exact, so rewinding
@@ -71,11 +71,10 @@ page.
   previous/next subtitle line, trim the audio on a waveform, and play the
   selection or the full clip.
 
-  ![Card builder](docs/images/card-builder.png)
+  ![Card builder](design/screenshots/card-builder.png)
 
-- **Pitch-accent graph** on Anki cards, in Yomitan's style.
-
-  ![Anki card with pitch graph](docs/images/anki-card.png)
+- **Pitch-accent graph** on Anki cards, in Yomitan's style (put the
+  `{pitch-graphs}` marker in a card field; needs a pitch dictionary).
 
 - **Better deconjugation**: forms the original missed (〜たら, ちゃ/じゃ,
   〜けりゃ, 書かされる, slang like 高え/すげえ).
@@ -84,7 +83,7 @@ page.
 
 ### Library
 
-![Library home](docs/images/library-home.png)
+![Library home](design/screenshots/library-home.png)
 
 - **Media > Library…** (also shown when Memento starts without a video).
   Point it at your anime folder: one folder per series; seasons (S1, S2…)
@@ -95,7 +94,7 @@ page.
 - **Series pages**: Resume/Play, rename, change poster, episode list with
   watched ticks and "UP NEXT", "Mark watched up to here".
 
-  ![Series page](docs/images/library-series.png)
+  ![Series page](design/screenshots/library-series.png)
 
 - **Watch history**: your position is saved as you watch; an episode counts
   as watched when it reaches its ending (and stays watched if you delete the
@@ -103,7 +102,7 @@ page.
 
 ### Tracking: Toggl and MyAnimeList
 
-![End-of-episode prompt](docs/images/end-prompt.png)
+![End-of-episode prompt](design/screenshots/end-prompt.png)
 
 - **End-of-episode prompt**: when an episode reaches its ending, Memento
   offers to
@@ -117,14 +116,14 @@ page.
 - **Anime list**: your MAL list inside Memento, with covers, tabs
   (Watching, Plan to Watch, …), −/+1, status menu and a link to MAL.
 
-  ![Anime list](docs/images/anime-list.png)
+  ![Anime list](design/screenshots/anime-list.png)
 
 - Everything is configurable in Settings > Behavior: Toggl token, workspace,
   project, tags and description (`{show} E{episode}` by default); MAL login.
 
 ### Manga
 
-![Manga page](docs/images/manga-page.png)
+![Manga page](design/screenshots/manga-page.png)
 
 - **Manga page** (Library > Manga, or Media > Manga…): your manga folder,
   with "Continue reading", a series grid and per-volume progress.
@@ -132,7 +131,7 @@ page.
   one volume or on all of them from inside Memento, with a progress bar and
   Cancel. No terminal needed (see [Setup](#setup)).
 
-  ![mokuro running](docs/images/mokuro-running.png)
+  ![mokuro running](design/screenshots/mokuro-running.png)
 
 - **Reader**: right-to-left pages, one or two pages at a time (D). Hover a
   speech bubble for the dictionary popup. Click the page to zoom in on that
@@ -140,7 +139,7 @@ page.
   dark edge on the left or press ← for the next page; the right edge or → to
   go back.
 
-  ![Manga reader](docs/images/manga-reader.png)
+  ![Manga reader](design/screenshots/manga-reader.png)
 
 - **Cards from manga** use the whole page as the picture and are tagged
   `Manga::<series>`.
@@ -150,7 +149,7 @@ page.
 - **Manga list**: your MAL manga list, with separate chapter and volume
   counters.
 
-  ![Manga list](docs/images/manga-list.png)
+  ![Manga list](design/screenshots/manga-list.png)
 
 ### Subtitles
 
@@ -167,7 +166,7 @@ Memento needs dictionaries and Anki like the original; see
 [AnkiConnect](https://ankiweb.net/shared/info/2055492159) in Anki. Then, for
 the fork's features:
 
-![Settings](docs/images/settings.png)
+![Settings](design/screenshots/settings.png)
 
 1. **Anime folder**: Media > Library… > Folder…, pick the folder that holds
    one folder per series.
@@ -183,6 +182,9 @@ the fork's features:
       **Log in**. Your browser opens MAL's login page once.
 4. **Toggl** (optional): paste your API token (Toggl > Profile settings) into
    Settings > Behavior > Toggl, then pick a workspace and project.
+
+   ![Toggl settings](design/screenshots/settings-toggl.png)
+
 5. **mokuro** (optional, for manga text):
    1. Install [Python](https://www.python.org/downloads/) (3.10 or newer;
       tick "Add to PATH").
