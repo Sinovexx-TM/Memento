@@ -245,12 +245,12 @@ Item {
         IconButton {
             iconName: "fast-rewind"
             ToolTip.text: qsTr("Previous subtitle line")
-            onClicked: root.player.controller.subtitleSeek(-1, true)
+            onClicked: root.player.jumpLine(-1)
         }
         IconButton {
             iconName: "fast-forward"
             ToolTip.text: qsTr("Next subtitle line")
-            onClicked: root.player.controller.subtitleSeek(1, true)
+            onClicked: root.player.jumpLine(1)
         }
         IconButton {
             iconName: "list"

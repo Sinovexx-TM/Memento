@@ -55,6 +55,65 @@ MpvPlayer {
     property int oscVisibility: Player.OscAuto
 
     /* Options window, for screens that cover the menu bar */
+    /* Where the last line jump went, so quick repeated presses add up
+     * before mpv reports the new position */
+    property real lineJumpTarget: -1
+    property real lineJumpAt: 0
+
+    /**
+     * Jump to the previous (-1) or next (1) dialogue line. Uses the subtitle
+     * list's times when it has the line (external subtitle files are known
+     * in full), so lines that haven't been played yet work too; otherwise
+     * mpv's sub-seek, which only knows lines it has already read.
+     */
+    function jumpLine(direction) {
+        const model = SubtitleLists.primary;
+        let pos = root.state.timePosition;
+        if (root.lineJumpTarget >= 0 && Date.now() - root.lineJumpAt < 1500) {
+            pos = root.lineJumpTarget;
+        }
+        const eps = 0.05;
+        let target = -1;
+        if (model) {
+            const starts = [];
+            for (let r = 0; r < model.rowCount(); ++r) {
+                const index = model.index(r, 0);
+                const text = model.data(index, SubtitleListModel.TextRole) ?? "";
+                if (text.trim().length > 0) {
+                    starts.push(model.data(index, SubtitleListModel.StartRole));
+                }
+            }
+            if (direction > 0) {
+                for (const s of starts) {
+                    if (s > pos + eps && (target < 0 || s < target)) {
+                        target = s;
+                    }
+                }
+            } else {
+                /* Start of the current line, then the line before it */
+                let current = -1;
+                for (const s of starts) {
+                    if (s <= pos + eps && s > current) {
+                        current = s;
+                    }
+                }
+                for (const s of starts) {
+                    if (s < current - eps && s > target) {
+                        target = s;
+                    }
+                }
+            }
+        }
+        if (target >= 0) {
+            root.lineJumpTarget = target;
+            root.lineJumpAt = Date.now();
+            root.controller.seek(target);
+        } else {
+            root.lineJumpTarget = -1;
+            root.controller.subtitleSeek(direction, true);
+        }
+    }
+
     function openOptions() {
         menu.openOptions();
     }
@@ -190,7 +249,7 @@ MpvPlayer {
             const direction = event.key === Qt.Key_Left ? -1 : 1;
             if (WatchHistory.option("arrow-mode", "seconds") === "lines")
             {
-                root.controller.subtitleSeek(direction, true);
+                root.jumpLine(direction);
             }
             else
             {
