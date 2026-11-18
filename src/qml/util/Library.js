@@ -68,7 +68,11 @@ function looseShowName(fileName) {
         /\[\s*\d{1,4}(?:v\d)?\s*\]/,
         /\b(?:Episode|Ep)\s*\d{1,4}\b/i,
         /第\s*\d{1,4}\s*[話话回]/,
-        /\s\d{1,3}(?:v\d)?(?:\s|$)/
+        /\s\d{1,3}(?:v\d)?(?:\s|$)/,
+        /* No episode number (a movie): cut at the year or the first release tag
+         * ("Dragon.Ball.Super.Broly.2018.v3.BluRay.1080p..." -> "Dragon Ball Super Broly") */
+        /\s(?:19|20)\d{2}(?=\s|$)/,
+        /\s(?:v\d|\d{3,4}p|\d{3,4}x\d{3,4}|BluRay|Blu-ray|BDRip|BD|DVD(?:Rip)?|WEB(?:-?DL|-?Rip)?|AMZN|NF|CR|DSNP|HDTV|x26[45]|HEVC|AVC|Hi10P?|FLAC|AAC|Dual[- ]Audio)(?=\s|-|$)/i
     ];
     for (var i = 0; i < cuts.length; ++i) {
         var m = s.match(cuts[i]);
@@ -206,7 +210,8 @@ function buildSeries(folder, files, history, names, media) {
             }
             shortLabel = label;
         } else {
-            label = SubMatch.cleanName(base).replace(/\s+/g, " ").trim() || base;
+            /* No episode number (a movie): its title without release tags */
+            label = looseShowName(fileName);
             shortLabel = label;
         }
         var dur = h.dur || 0;

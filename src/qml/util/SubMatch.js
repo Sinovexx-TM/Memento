@@ -47,10 +47,12 @@ function cleanName(s) {
     s = s.replace(/\b\d{3,4}\s*x\s*\d{3,4}\b/gi, " ");                     /* 1920x1080 */
     s = s.replace(/\b\d{3,4}[pi]\b/gi, " ");                               /* 1080p */
     s = s.replace(/\b(?:[xh]\.?26[45]|hevc|avc|av1|vp9|xvid|divx)\b/gi, " ");
-    s = s.replace(/\b(?:aac|flac|ac-?3|e-?ac-?3|ddp?|dts|opus|mp3|truehd|pcm)\s*\d?(?:\.\d)?\b/gi, " ");
+    /* Audio + channels: "AAC 2.0", "DDP2.0", "FLAC.5.1" (dotted names) */
+    s = s.replace(/\b(?:aac|flac|ac-?3|e-?ac-?3|ddp?|dts|opus|mp3|truehd|pcm)(?:[\s.]*\d(?:\.\d)?)?\b/gi, " ");
     s = s.replace(/\b\d{1,2}\s*-?\s*bits?\b/gi, " ");                     /* 10bit */
     s = s.replace(/\b(?:ma|hi)10p?\b/gi, " ");
     s = s.replace(/\b[257]\.[01]\b/g, " ");                               /* 5.1, 2.0 */
+    s = s.replace(/\bv\d\b/gi, " ");                                      /* release v3 (not 12v2) */
     s = s.replace(/\b(?:19[5-9]\d|20[0-4]\d)\b/g, " ");                   /* bare years */
     s = s.replace(/[_]+/g, " ");
     return s;

@@ -24,6 +24,8 @@ eq("loose dbs", L.looseShowName("Dragon.Ball.Super.Beerus.S01E06.1080p.AMZN.WEB-
 eq("loose dash", L.looseShowName("[SubsPlease] Sousou no Frieren - 12 (1080p) [ABCD1234].mkv"), "Sousou no Frieren");
 eq("loose bracket", L.looseShowName("[VCB-Studio] Show Name [03][Ma10p_1080p].mkv"), "Show Name");
 eq("loose movie", L.looseShowName("Kimi no Na wa (2016) [1080p].mkv"), "Kimi no Na wa");
+eq("loose dotted movie", L.looseShowName("Dragon.Ball.Super.Broly.2018.v3.BluRay.1080p.Dual-Audio.FLAC.5.1.Hi10P.x264-JySzE.mkv"), "Dragon Ball Super Broly");
+eq("loose movie no year", L.looseShowName("Akira.1080p.BluRay.x264.mkv"), "Akira");
 {
   const g = L.groupLoose("C:/A", [{ rel: "Dragon.Ball.Super.Beerus.S01E06.1080p.AMZN.WEB-DL.JPN.DDP2.0.H.264-ToonsHub.mkv", path: "C:/A/x6.mkv" }, { rel: "Dragon.Ball.Super.Beerus.S01E07.1080p.AMZN.WEB-DL.JPN.DDP2.0.H.264-ToonsHub.mkv", path: "C:/A/x7.mkv" }]);
   eq("loose group", g.length, 1);

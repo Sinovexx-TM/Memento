@@ -193,7 +193,10 @@ QtObject {
             }
         }
         if (show === null) {
-            show = s;
+            /* No episode (a movie): cut at the year or the first release tag
+             * ("Dragon Ball Super Broly 2018 v3 BluRay ..." -> "Dragon Ball Super Broly") */
+            const m = s.match(/^(.*?\S)\s+(?:(?:19|20)\d{2}|v\d|\d{3,4}p|blu[- ]?ray|bd(?:rip)?|web(?:[- ]?(?:dl|rip))?|dvd(?:rip)?|hdtv|amzn|nf|cr)(?=\s|-|$)/i);
+            show = m ? m[1] : s;
         }
 
         show = Utils.cleanMediaText(show.replace(tags, " "));
