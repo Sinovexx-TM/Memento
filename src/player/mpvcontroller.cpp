@@ -199,7 +199,8 @@ void MpvController::seek(double time)
     const char *args[]{
         "seek",
         timestr,
-        "absolute",
+        /* Always precise: keyframe seeks snap back on sparse-keyframe web releases */
+        "absolute+exact",
         NULL
     };
     if (::mpv_command_async(handle(), 0, args) < 0)
