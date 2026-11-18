@@ -483,6 +483,70 @@ Page {
             }
 
             SettingsBox {
+                id: arrowBox
+                Layout.preferredWidth: root.preferredWidth
+                Layout.alignment: Qt.AlignHCenter
+                Layout.bottomMargin: root.groupSpacing
+                title: qsTr("Arrow keys (saved immediately)")
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: root.groupSpacing
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("← and → keys")
+                        }
+                        ComboBox {
+                            id: arrowMode
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 260
+                            textRole: "text"
+                            valueRole: "value"
+                            model: [
+                                { text: qsTr("Go back/forward a few seconds"), value: "seconds" },
+                                { text: qsTr("Previous/next subtitle line"), value: "lines" }
+                            ]
+                            Component.onCompleted: currentIndex = indexOfValue(WatchHistory.option("arrow-mode", "seconds"))
+                            onActivated: WatchHistory.setOption("arrow-mode", currentValue)
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Seconds per key press")
+                        }
+                        SpinBox {
+                            Layout.alignment: Qt.AlignRight
+                            enabled: arrowMode.currentValue === "seconds"
+                            editable: true
+                            from: 1
+                            to: 60
+                            value: Number(WatchHistory.option("arrow-seconds", 5))
+                            onValueModified: WatchHistory.setOption("arrow-seconds", value)
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Label.WordWrap
+                        color: MementoPalette.placeholderText
+                        text: qsTr("The 10 s buttons on the control bar always jump 10 seconds.")
+                    }
+                }
+            }
+
+            SettingsBox {
                 id: malBox
                 Layout.preferredWidth: root.preferredWidth
                 Layout.alignment: Qt.AlignHCenter

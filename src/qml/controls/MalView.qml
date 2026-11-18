@@ -176,6 +176,7 @@ Rectangle {
                 onClicked: MalClient.openUrl("https://myanimelist.net/animelist/" + MalClient.userName)
             }
             FlatButton {
+                visible: !root.fromLibrary
                 text: qsTr("Library")
                 onClicked: root.toLibrary()
             }

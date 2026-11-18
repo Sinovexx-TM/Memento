@@ -49,6 +49,9 @@ Rectangle {
     color: "#141414"
 
     function open() {
+        root.currentKey = "";
+        root.current = null;
+        homeFlick.contentY = 0;
         root.refresh();
         root.visible = true;
         root.forceActiveFocus();

@@ -183,6 +183,23 @@ MpvPlayer {
             event.accepted = true;
             return;
         }
+        /* ← →: seek by seconds or jump a subtitle line (Options > Behavior) */
+        if ((event.key === Qt.Key_Left || event.key === Qt.Key_Right) &&
+            event.modifiers === Qt.NoModifier)
+        {
+            const direction = event.key === Qt.Key_Left ? -1 : 1;
+            if (WatchHistory.option("arrow-mode", "seconds") === "lines")
+            {
+                root.controller.subtitleSeek(direction, true);
+            }
+            else
+            {
+                const seconds = Number(WatchHistory.option("arrow-seconds", 5));
+                root.controller.command(["seek", String(direction * seconds), "exact"]);
+            }
+            event.accepted = true;
+            return;
+        }
         root.controller.sendKeyPress(event.key, event.modifiers);
     }
 

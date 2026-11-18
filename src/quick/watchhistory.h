@@ -76,6 +76,13 @@ public:
     Q_INVOKABLE QString localPath(const QUrl &url) const;
 
     /**
+     * @brief Small options of this fork that don't belong to a feature
+     * class (QSettings group "fork"), e.g. what the arrow keys do.
+     */
+    Q_INVOKABLE QVariant option(const QString &key, const QVariant &fallback) const;
+    Q_INVOKABLE void setOption(const QString &key, const QVariant &value);
+
+    /**
      * @brief AniList info per series key: { id, title, english, native,
      * posterUrl, poster (local file URL), none (true = nothing found) }.
      */

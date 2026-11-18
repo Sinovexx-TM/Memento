@@ -204,6 +204,20 @@ void WatchHistory::setName(const QString &key, const QString &name)
     emit changed();
 }
 
+QVariant WatchHistory::option(const QString &key, const QVariant &fallback) const
+{
+    QSettings settings;
+    settings.beginGroup("fork");
+    return settings.value(key, fallback);
+}
+
+void WatchHistory::setOption(const QString &key, const QVariant &value)
+{
+    QSettings settings;
+    settings.beginGroup("fork");
+    settings.setValue(key, value);
+}
+
 QString WatchHistory::localPath(const QUrl &url) const
 {
     return url.isLocalFile() ? QDir::cleanPath(url.toLocalFile()) : url.toString();
