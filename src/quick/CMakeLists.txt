@@ -164,3 +164,17 @@ target_link_libraries(
     PRIVATE Qt6::Gui
     PRIVATE utils
 )
+
+add_library(
+    mangalibrary
+    mangalibrary.cpp
+    mangalibrary.h
+)
+target_compile_features(mangalibrary PRIVATE cxx_std_20)
+target_include_directories(mangalibrary PRIVATE ${MEMENTO_INCLUDE_DIRS})
+target_compile_options(mangalibrary PRIVATE ${MEMENTO_COMPILER_FLAGS})
+target_link_libraries(
+    mangalibrary
+    PUBLIC Qt6::Core
+    PRIVATE utils
+)

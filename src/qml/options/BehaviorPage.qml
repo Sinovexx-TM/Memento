@@ -590,6 +590,56 @@ Page {
                         }
                     }
 
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Manga description ({show} and {volume} are filled in)")
+                        }
+                        TextField {
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 260
+                            placeholderText: "{show} {volume}"
+                            text: String(WatchHistory.option("manga-toggl-description", "{show} {volume}"))
+                            onEditingFinished: WatchHistory.setOption("manga-toggl-description",
+                                                                      text.length > 0 ? text : "{show} {volume}")
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            text: qsTr("Manga project")
+                        }
+                        ComboBox {
+                            id: mangaProjectBox
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 260
+                            textRole: "name"
+                            valueRole: "name"
+                            model: togglBox.projects
+                            currentIndex: Math.max(0, togglBox.projects.findIndex(
+                                p => p.name.toLowerCase() === String(WatchHistory.option("manga-toggl-project", "")).toLowerCase()))
+                            displayText: currentText.length > 0 ? currentText : qsTr("(no project)")
+                            delegate: ItemDelegate {
+                                required property var modelData
+                                width: mangaProjectBox.width
+                                text: modelData.name.length > 0 ? modelData.name : qsTr("(no project)")
+                            }
+                            onActivated: WatchHistory.setOption("manga-toggl-project", currentValue)
+                        }
+                    }
+
                     Label {
                         Layout.fillWidth: true
                         wrapMode: Label.WordWrap

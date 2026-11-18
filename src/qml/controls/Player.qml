@@ -31,6 +31,10 @@ MpvPlayer {
     property alias watchTracker: watchTracker
     property alias malView: malView
 
+    /* Manga reader (mokuro) and its Toggl prompt */
+    property alias mangaView: mangaView
+    property alias mangaToggl: mangaToggl
+
     property point cursorPosition: Qt.point(0, 0)
 
     property bool ocrMode: false
@@ -1031,5 +1035,15 @@ MpvPlayer {
         id: malView
         anchors.fill: parent
         player: root
+    }
+
+    MangaView {
+        id: mangaView
+        anchors.fill: parent
+        player: root
+    }
+
+    MangaToggl {
+        id: mangaToggl
     }
 }

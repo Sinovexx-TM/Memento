@@ -67,6 +67,7 @@
 #include "quick/subfiles.h"
 #include "quick/watchhistory.h"
 #include "quick/malclient.h"
+#include "quick/mangalibrary.h"
 #include "setting/migration.h"
 #include "setting/settings.h"
 #include "state/context.h"
@@ -266,6 +267,9 @@ static void registerQmlTypes(Context &context)
     );
     qmlRegisterSingletonInstance<MalClient>(
         MEMENTO_URI, 1, 0, "MalClient", new MalClient(&context)
+    );
+    qmlRegisterSingletonInstance<MangaLibrary>(
+        MEMENTO_URI, 1, 0, "MangaLibrary", new MangaLibrary(&context)
     );
     qmlRegisterSingletonInstance<TogglClient>(
         MEMENTO_URI, 1, 0, "TogglClient", new TogglClient(&context)

@@ -94,6 +94,13 @@ public:
     Q_INVOKABLE void logEntry(int durationSeconds, const QString &show, const QString &episode);
 
     /**
+     * @brief Queue an entry with its own description and project (manga
+     * reading) ending at endMs (0 = now), and send all queued entries.
+     */
+    Q_INVOKABLE void logCustom(int durationSeconds, const QString &description,
+                               const QString &project, double endMs);
+
+    /**
      * @brief Send all queued entries again. Emits finished() when done.
      */
     Q_INVOKABLE void retryPending();

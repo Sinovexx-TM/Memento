@@ -1315,6 +1315,16 @@ void AnkiClient::setCardBuilderOverride(
     m_cardOverride = {true, text, start, end};
 }
 
+void AnkiClient::setMangaPage(const QString &imagePath, const QStringList &tags)
+{
+    Anki::Note::setImageSource(imagePath, imagePath.isEmpty() ? QStringList() : tags);
+}
+
+bool AnkiClient::mangaActive() const
+{
+    return Anki::Note::imageSourceActive();
+}
+
 void AnkiClient::clearCardBuilderOverride()
 {
     m_cardOverride = {};

@@ -28,6 +28,7 @@ target_link_libraries(
     PRIVATE "$<$<NOT:$<BOOL:${MEMENTO_SYSTEM_QCORO}>>:QCoro6Network>"
     PRIVATE context
     PRIVATE Qt6::Concurrent
+    PRIVATE Qt6::Gui
     PRIVATE utils
     PUBLIC "$<$<BOOL:${MEMENTO_SYSTEM_QCORO}>:QCoro::Coro>"
     PUBLIC "$<$<BOOL:${MEMENTO_SYSTEM_QCORO}>:QCoro::Qml>"

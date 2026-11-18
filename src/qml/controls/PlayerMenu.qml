@@ -100,6 +100,11 @@ MenuBar {
             onTriggered: root.player.malView.open()
         }
 
+        Action {
+            text: qsTr("M&anga...")
+            onTriggered: root.player.mangaView.open()
+        }
+
         MenuSeparator { }
 
         Action {

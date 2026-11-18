@@ -372,6 +372,14 @@ Rectangle {
         }
 
         FlatButton {
+            text: qsTr("Manga")
+            onClicked: {
+                root.visible = false;
+                root.player.mangaView.open();
+            }
+        }
+
+        FlatButton {
             text: qsTr("Folder…")
             onClicked: folderDialog.open()
         }

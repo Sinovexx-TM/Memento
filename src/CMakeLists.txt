@@ -85,6 +85,10 @@ qt_add_qml_module(
         qml/controls/MalView.qml
         qml/controls/MalPicker.qml
         qml/util/Mal.js
+        qml/util/Manga.js
+        qml/controls/MangaView.qml
+        qml/controls/MangaReader.qml
+        qml/controls/MangaToggl.qml
         qml/definition/DefinitionList.qml
         qml/definition/CardBuilderDialog.qml
         qml/definition/DefinitionPage.qml
@@ -177,6 +181,7 @@ target_link_libraries(
     PRIVATE subfiles
     PRIVATE watchhistory
     PRIVATE malclient
+    PRIVATE mangalibrary
     PRIVATE utils
 )
 set(
