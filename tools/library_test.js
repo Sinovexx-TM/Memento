@@ -4,7 +4,7 @@ const SubMatch = new Function(read("../src/qml/util/SubMatch.js").replace(".prag
   "; return { parseEpisode, splitExt, cleanName };")();
 const L = new Function("SubMatch", read("../src/qml/util/Library.js")
   .replace(".pragma library", "").replace(/^\.import.*$/m, "") +
-  "; return { key, seriesTitle, buildSeries, nextEpisode, continueList, keysUpTo, formatTime, formatDate, extraLabel };")(SubMatch);
+  "; return { key, seriesTitle, buildSeries, nextEpisode, continueList, keysUpTo, formatTime, formatDate, extraLabel, looseShowName, groupLoose };")(SubMatch);
 
 let fails = 0;
 function eq(label, got, want) {
@@ -20,6 +20,16 @@ eq("extra drama", L.extraLabel("[VCB-Studio] Fullmetal Alchemist꞉ Brotherhood 
 eq("extra ncop", L.extraLabel("[Group] Show - NCOP1 [1080p]"), "NCOP1");
 eq("extra fma ed", L.extraLabel("[VCB-Studio] Fullmetal Alchemist꞉ Brotherhood [ED_EP45(O.A. Ver.)][Ma10p_1080p][x265_flac]"), "ED EP45(O.A. Ver.)");
 eq("extra ep", L.extraLabel("[ReinForce] Fate／Kaleid Liner Prisma Illya - ED ep.9 (BDRip 1920x1080 x264 FLAC)"), "ED ep.9");
+eq("loose dbs", L.looseShowName("Dragon.Ball.Super.Beerus.S01E06.1080p.AMZN.WEB-DL.JPN.DDP2.0.H.264-ToonsHub.mkv"), "Dragon Ball Super Beerus");
+eq("loose dash", L.looseShowName("[SubsPlease] Sousou no Frieren - 12 (1080p) [ABCD1234].mkv"), "Sousou no Frieren");
+eq("loose bracket", L.looseShowName("[VCB-Studio] Show Name [03][Ma10p_1080p].mkv"), "Show Name");
+eq("loose movie", L.looseShowName("Kimi no Na wa (2016) [1080p].mkv"), "Kimi no Na wa");
+{
+  const g = L.groupLoose("C:/A", [{ rel: "Dragon.Ball.Super.Beerus.S01E06.1080p.AMZN.WEB-DL.JPN.DDP2.0.H.264-ToonsHub.mkv", path: "C:/A/x6.mkv" }, { rel: "Dragon.Ball.Super.Beerus.S01E07.1080p.AMZN.WEB-DL.JPN.DDP2.0.H.264-ToonsHub.mkv", path: "C:/A/x7.mkv" }]);
+  eq("loose group", g.length, 1);
+  const s = L.buildSeries(g[0].folder, g[0].files, {});
+  eq("loose series", [s.title, s.main.map(e => e.label)], ["Dragon Ball Super Beerus", ["Episode 6", "Episode 7"]]);
+}
 eq("time", [L.formatTime(751), L.formatTime(3909)], ["12:31", "1:05:09"]);
 
 // Next-episode logic
@@ -63,6 +73,14 @@ if (root) {
     for (const sec of sr.sections) {
       console.log(`  [${sec.title || "-"}] ${sec.episodes.map(x => x.short).join(", ")}`);
     }
+  }
+}
+if (root) {
+  const loose = [...Deno.readDirSync(root)].filter(e => e.isFile && /\.(mkv|mp4)$/i.test(e.name)).map(e => ({ rel: e.name, path: root + "/" + e.name }));
+  for (const g of L.groupLoose(root, loose)) {
+    const sr = L.buildSeries(g.folder, g.files, {});
+    console.log(`
+== (loose) ${sr.title}: ${sr.main.map(x => x.label).join(", ")}`);
   }
 }
 console.log(fails ? `\n${fails} FAILED` : "\nall tests passed");

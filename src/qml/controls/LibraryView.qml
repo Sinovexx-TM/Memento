@@ -58,6 +58,10 @@ Rectangle {
                 list.push(s);
             }
         }
+        /* Videos lying directly in the library folder, grouped by show */
+        for (const group of Library.groupLoose(WatchHistory.libraryRoot, WatchHistory.looseVideos())) {
+            list.push(Library.buildSeries(group.folder, group.files, history, names));
+        }
         list.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
         root.seriesList = list;
         root.continueItems = Library.continueList(list);
@@ -541,7 +545,9 @@ Rectangle {
 
             Text {
                 width: parent.width
-                text: root.current ? root.current.folderName : ""
+                text: root.current ? (root.current.loose ?
+                                          qsTr("Loose files in the library folder") :
+                                          root.current.folderName) : ""
                 color: root.faintColor
                 font.pixelSize: 12
                 elide: Text.ElideMiddle

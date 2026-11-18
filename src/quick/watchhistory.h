@@ -41,6 +41,13 @@ public:
     Q_INVOKABLE QVariantList videosIn(const QString &folder) const;
 
     /**
+     * @brief Video files directly in the library folder (not in a series
+     * folder). Library.js groups them by show name.
+     * @return [{ rel (file name), path }].
+     */
+    Q_INVOKABLE QVariantList looseVideos() const;
+
+    /**
      * @brief All episode entries, keyed as stored.
      */
     Q_INVOKABLE QVariantMap entries() const;

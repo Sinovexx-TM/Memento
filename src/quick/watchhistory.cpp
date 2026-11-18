@@ -106,6 +106,25 @@ QVariantList WatchHistory::videosIn(const QString &folder) const
     return result;
 }
 
+QVariantList WatchHistory::looseVideos() const
+{
+    QVariantList result;
+    const QString root = libraryRoot();
+    if (root.isEmpty())
+    {
+        return result;
+    }
+    QDir dir(root);
+    for (const QString &name : dir.entryList(VIDEO_FILTERS, QDir::Files, QDir::Name))
+    {
+        result << QVariantMap{
+            {"rel", name},
+            {"path", QDir::cleanPath(dir.filePath(name))},
+        };
+    }
+    return result;
+}
+
 QVariantMap WatchHistory::entries() const
 {
     return m_episodes;

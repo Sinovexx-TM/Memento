@@ -54,6 +54,53 @@ function extraLabel(base) {
     return clean.length > 0 ? clean : base;
 }
 
+/* Show name of a loose file: the part before the episode number, without
+ * the group and release tags ("Dragon.Ball.Super.Beerus.S01E06.1080p..."
+ * -> "Dragon Ball Super Beerus") */
+function looseShowName(fileName) {
+    var base = SubMatch.splitExt(fileName).base;
+    var s = base.replace(/^\s*\[[^\]]*\]\s*/, "");
+    /* Dots and underscores as spaces, but keep decimals like 12.5 */
+    s = s.replace(/[._](?!\d(?:\D|$))/g, " ").replace(/_/g, " ");
+    var cuts = [
+        /\bS\d{1,2}\s?E\d{1,4}\b/i,
+        /\s-\s*\d{1,4}(?:\.\d)?(?:v\d)?\b/,
+        /\[\s*\d{1,4}(?:v\d)?\s*\]/,
+        /\b(?:Episode|Ep)\s*\d{1,4}\b/i,
+        /第\s*\d{1,4}\s*[話话回]/,
+        /\s\d{1,3}(?:v\d)?(?:\s|$)/
+    ];
+    for (var i = 0; i < cuts.length; ++i) {
+        var m = s.match(cuts[i]);
+        if (m && m.index > 0) {
+            s = s.substring(0, m.index);
+            break;
+        }
+    }
+    s = SubMatch.cleanName(s);
+    s = s.replace(/\b(?:AMZN|NF|CR|DSNP|HULU|ABEMA|B-Global|WEB(?:-?DL|-?Rip)?|BD(?:Rip)?|BluRay|JPN|Dual[- ]Audio)\b/gi, " ");
+    s = s.replace(/\s+/g, " ").replace(/^[-\s]+|[-\s]+$/g, "");
+    return s.length > 0 ? s : base;
+}
+
+/* Loose files grouped into series: [{ folder: { name, path }, files }].
+ * The path is a made-up key under the library folder, so history and
+ * custom names work as for folders. */
+function groupLoose(root, files) {
+    var groups = {};
+    var order = [];
+    for (var i = 0; i < files.length; ++i) {
+        var name = looseShowName(files[i].rel);
+        var k = name.toLowerCase();
+        if (!groups[k]) {
+            groups[k] = { folder: { name: name, path: root + "/:loose:/" + name, loose: true }, files: [] };
+            order.push(k);
+        }
+        groups[k].files.push(files[i]);
+    }
+    return order.map(function (k) { return groups[k]; });
+}
+
 function compareNatural(a, b) {
     return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 }
@@ -210,7 +257,8 @@ function buildSeries(folder, files, history, names) {
         key: folderKey,
         path: folder.path,
         folderName: folder.name,
-        title: names[folderKey] || seriesTitle(folder.name),
+        title: names[folderKey] || (folder.loose ? folder.name : seriesTitle(folder.name)),
+        loose: !!folder.loose,
         sections: sections,
         main: main,
         watched: main.filter(function (e) { return e.done; }).length,
