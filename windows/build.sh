@@ -44,8 +44,27 @@ cp $PREFIX/bin/libssl-*.dll ./Memento_$ARCH
 cd Memento_$ARCH
 PATH="${PREFIX}/share/qt6/bin:$PATH" windeployqt --qmldir ../../src/qml memento.exe
 
+# windeployqt copies the image format plugins but not all of their own
+# MinGW dependencies (qwebp.dll needs libwebpdemux-2.dll, which nothing else
+# uses), so WebP images (MAL covers) silently failed to load. Bundle them.
+for plugin in imageformats/*.dll
+do
+    MINGW_BUNDLEDLLS_SEARCH_PATH="$(cygpath -w "$PREFIX/bin")" \
+        python3 ../../windows/mingw-bundledlls.py "$plugin" > plugin_deps.txt
+    while IFS= read -r dep
+    do
+        dep="$(cygpath -u "${dep%$'\r'}")"
+        if [[ -f "$dep" && ! -f "$(basename "$dep")" ]]
+        then
+            echo "Bundling $(basename "$dep") for $plugin"
+            cp "$dep" .
+        fi
+    done < plugin_deps.txt
+    rm -f plugin_deps.txt
+done
+
 # Ensure non-Qt dependencies were bundled before producing release archives.
-for dll in libgcc_s_seh-1.dll libstdc++-6.dll libmpv-2.dll
+for dll in libgcc_s_seh-1.dll libstdc++-6.dll libmpv-2.dll libwebpdemux-2.dll
 do
     if [[ ! -f "$dll" ]]
     then
