@@ -84,6 +84,13 @@ MenuBar {
         width: Math.max(contentWidth + leftPadding + rightPadding, root.minimumMenuWidth)
 
         Action {
+            text: qsTr("&Library...")
+            onTriggered: root.player.library.open()
+        }
+
+        MenuSeparator { }
+
+        Action {
             text: qsTr("&Open File...")
             shortcut: MementoSettings.keybinds.profile?.openFile
             onShortcutChanged: {

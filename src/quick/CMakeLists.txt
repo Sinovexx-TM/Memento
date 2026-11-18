@@ -133,3 +133,17 @@ target_link_libraries(
     subfiles
     PUBLIC Qt6::Core
 )
+
+add_library(
+    watchhistory
+    watchhistory.cpp
+    watchhistory.h
+)
+target_compile_features(watchhistory PRIVATE cxx_std_20)
+target_include_directories(watchhistory PRIVATE ${MEMENTO_INCLUDE_DIRS})
+target_compile_options(watchhistory PRIVATE ${MEMENTO_COMPILER_FLAGS})
+target_link_libraries(
+    watchhistory
+    PUBLIC Qt6::Core
+    PRIVATE utils
+)

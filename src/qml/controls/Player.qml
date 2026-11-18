@@ -26,6 +26,10 @@ MpvPlayer {
     /* Subtitle matching; the Subtitle menu opens its folder rename */
     property alias subMatcher: subMatcher
 
+    /* Anime library and watch history */
+    property alias library: libraryView
+    property alias watchTracker: watchTracker
+
     property point cursorPosition: Qt.point(0, 0)
 
     property bool ocrMode: false
@@ -651,6 +655,11 @@ MpvPlayer {
         player: root
     }
 
+    WatchTracker {
+        id: watchTracker
+        player: root
+    }
+
     PauseInfo {
         id: pauseInfo
         player: root
@@ -926,5 +935,12 @@ MpvPlayer {
         }
         onShowTextRequested: (text) => root.controller.showText(text)
         onTextRecognized: (text) => root.auxiliarySearchRequested(text)
+    }
+
+    /* Covers everything else while open */
+    LibraryView {
+        id: libraryView
+        anchors.fill: parent
+        player: root
     }
 }

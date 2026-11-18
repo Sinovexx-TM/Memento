@@ -14,6 +14,7 @@ ApplicationWindow {
 
     /* Offer to log the episode to Toggl before quitting (once) */
     onClosing: function(close) {
+        player.watchTracker.flush();
         if (player.toggl.askBeforeQuit())
         {
             close.accepted = false;
@@ -182,7 +183,11 @@ ApplicationWindow {
                 }
                 else
                 {
-                    player.controller.loadArgs(Qt.application.arguments);
+                    if (!player.controller.loadArgs(Qt.application.arguments))
+                    {
+                        /* Started without a file: show the library */
+                        player.library.open();
+                    }
                 }
             }
             onShutdown: Qt.quit()
