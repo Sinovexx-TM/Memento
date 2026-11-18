@@ -18,32 +18,14 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "player/mpvframebackend.h"
+#version 440
 
-#include <mpv/render_gl.h>
+layout(binding = 0) uniform sampler2D frameTexture;
+layout(location = 0) in vec2 texCoord;
+layout(location = 0) out vec4 fragColor;
 
-#include "player/mpvplayer.h"
-
-MpvFrameBackend::MpvFrameBackend(MpvPlayer *player) : m_player{player}
+/* Presents the BGRA texture through its typed view as opaque video. */
+void main()
 {
-
-}
-
-void MpvFrameBackend::renderToFramebuffer(
-    unsigned int framebuffer, const QSize &size)
-{
-    mpv_opengl_fbo mpfbo{
-        .fbo = static_cast<int>(framebuffer),
-        .w = size.width(),
-        .h = size.height(),
-        .internal_format = 0
-    };
-    int flipY{0};
-
-    mpv_render_param params[]{
-        {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
-        {MPV_RENDER_PARAM_FLIP_Y, &flipY},
-        {MPV_RENDER_PARAM_INVALID, nullptr}
-    };
-    ::mpv_render_context_render(m_player->renderContext(), params);
+    fragColor = vec4(texture(frameTexture, texCoord).rgb, 1.0);
 }
