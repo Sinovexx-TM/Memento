@@ -251,7 +251,7 @@ Rectangle {
             FlatButton {
                 visible: root.undone.length > 0 && !MangaLibrary.running
                 text: qsTr("Run mokuro on all without text (%1)").arg(root.undone.length)
-                onClicked: MangaLibrary.runMokuro(root.undone.map(v => v.path))
+                onClicked: runAllDialog.open()
             }
             FlatButton {
                 text: qsTr("Anime")
@@ -596,6 +596,36 @@ Rectangle {
         onAccepted: {
             MangaLibrary.root = MangaLibrary.localPath(folderDialog.selectedFolder);
             root.refresh();
+        }
+    }
+
+    /* "Run on all" can mean hours of work: ask first */
+    Dialog {
+        id: runAllDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 40, 480)
+        modal: true
+        title: qsTr("Run mokuro on %1 volumes?").arg(root.undone.length)
+        standardButtons: Dialog.Yes | Dialog.Cancel
+        onAccepted: MangaLibrary.runMokuro(root.undone.map(v => v.path))
+
+        Label {
+            width: parent.width
+            wrapMode: Label.WordWrap
+            text: {
+                const counts = {};
+                for (const v of root.undone) {
+                    const t = Manga.seriesTitle(v.series);
+                    counts[t] = (counts[t] ?? 0) + 1;
+                }
+                const lines = Object.keys(counts).map(t => "• " + t + " (" + counts[t] + ")");
+                return lines.join("
+") + "
+
+" +
+                    qsTr("This can take hours and keeps the graphics card busy. You can cancel at any time; finished volumes keep their text.");
+            }
         }
     }
 
