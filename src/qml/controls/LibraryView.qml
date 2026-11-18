@@ -211,7 +211,9 @@ Rectangle {
             root.posterBusy = "";
             if (success) {
                 /* First result; nothing found = fallback tile */
-                WatchHistory.setMedia(key, results.length > 0 ? results[0] : { none: true });
+                const series = root.seriesList.find(s => s.key === key);
+                WatchHistory.setMedia(key, results.length > 0 ? results[0] :
+                                      { none: true, guess: series ? series.guess : "" });
             }
             root.nextPoster();
         }

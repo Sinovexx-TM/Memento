@@ -4,7 +4,7 @@ const SubMatch = new Function(read("../src/qml/util/SubMatch.js").replace(".prag
   "; return { parseEpisode, splitExt, cleanName, movieTitle };")();
 const L = new Function("SubMatch", read("../src/qml/util/Library.js")
   .replace(".pragma library", "").replace(/^\.import.*$/m, "") +
-  "; return { key, seriesTitle, buildSeries, nextEpisode, continueList, keysUpTo, formatTime, formatDate, extraLabel, looseShowName, groupLoose };")(SubMatch);
+  "; return { key, seriesTitle, searchName, buildSeries, nextEpisode, continueList, keysUpTo, formatTime, formatDate, extraLabel, looseShowName, groupLoose };")(SubMatch);
 
 let fails = 0;
 function eq(label, got, want) {
@@ -12,6 +12,11 @@ function eq(label, got, want) {
   if (g !== w) { fails++; console.log("FAIL", label, "\n  got ", g, "\n  want", w); }
 }
 
+eq("search s01", L.searchName("Oshi no Ko S01"), "Oshi no Ko");
+eq("search s02", L.searchName("Mato Seihei no Slave S02"), "Mato Seihei no Slave 2");
+eq("search season 3", L.searchName("Show Season 3"), "Show 3");
+eq("search plain", L.searchName("Hirogaru Sky! Precure"), "Hirogaru Sky! Precure");
+eq("search 2nd season", L.searchName("Himesama 2nd Season"), "Himesama 2nd Season");
 eq("title vcb", L.seriesTitle("[VCB-Studio] Fullmetal Alchemist꞉ Brotherhood [Ma10p_1080p]"), "Fullmetal Alchemist꞉ Brotherhood");
 eq("title moozzi", L.seriesTitle("[Moozzi2] Hirogaru Sky! Precure BD-BOX [ x265-10Bit Ver. ] - TV + SP"), "Hirogaru Sky! Precure");
 eq("title nanako", L.seriesTitle("[NanakoRaws] Shin Samurai-den Yaiba (NTV 1920x1080 x265 AAC)"), "Shin Samurai-den Yaiba");
