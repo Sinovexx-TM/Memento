@@ -590,6 +590,56 @@ Page {
                         }
                     }
 
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Manga description ({show} and {volume} are filled in)")
+                        }
+                        TextField {
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 260
+                            placeholderText: "{show} {volume}"
+                            text: String(WatchHistory.option("manga-toggl-description", "{show} {volume}"))
+                            onEditingFinished: WatchHistory.setOption("manga-toggl-description",
+                                                                      text.length > 0 ? text : "{show} {volume}")
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            text: qsTr("Manga project")
+                        }
+                        ComboBox {
+                            id: mangaProjectBox
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 260
+                            textRole: "name"
+                            valueRole: "name"
+                            model: togglBox.projects
+                            currentIndex: Math.max(0, togglBox.projects.findIndex(
+                                p => p.name.toLowerCase() === String(WatchHistory.option("manga-toggl-project", "")).toLowerCase()))
+                            displayText: currentText.length > 0 ? currentText : qsTr("(no project)")
+                            delegate: ItemDelegate {
+                                required property var modelData
+                                width: mangaProjectBox.width
+                                text: modelData.name.length > 0 ? modelData.name : qsTr("(no project)")
+                            }
+                            onActivated: WatchHistory.setOption("manga-toggl-project", currentValue)
+                        }
+                    }
+
                     Label {
                         Layout.fillWidth: true
                         wrapMode: Label.WordWrap
@@ -664,6 +714,57 @@ Page {
                         wrapMode: Label.WordWrap
                         color: MementoPalette.placeholderText
                         text: qsTr("The 10 s buttons on the control bar always jump 10 seconds.")
+                    }
+                }
+            }
+
+            SettingsBox {
+                Layout.preferredWidth: root.preferredWidth
+                Layout.alignment: Qt.AlignHCenter
+                Layout.bottomMargin: root.groupSpacing
+                title: qsTr("File names (saved immediately)")
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: root.groupSpacing
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Show the file name on the pause screen")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            checked: String(WatchHistory.option("pause-file-name", false)) === "true"
+                            onClicked: WatchHistory.setOption("pause-file-name", checked)
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Show the folder name on Library series pages")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            checked: String(WatchHistory.option("series-folder-name", true)) === "true"
+                            onClicked: WatchHistory.setOption("series-folder-name", checked)
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Label.WordWrap
+                        color: MementoPalette.placeholderText
+                        text: qsTr("When the pause screen hides it, hover the title to see the file name.")
                     }
                 }
             }

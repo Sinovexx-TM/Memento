@@ -116,5 +116,17 @@ Anki::Note::Context build(
     const AnkiProfile &profile,
     const Kanji &kanji,
     bool media);
+
+/**
+ * @brief Manga reader: use this image file instead of a video screenshot,
+ * add no sentence audio or video, and add these tags. An empty path turns
+ * it off.
+ */
+void setImageSource(const QString &path, const QStringList &tags);
+
+/**
+ * @brief true while a manga image source is set.
+ */
+bool imageSourceActive();
 }
 }

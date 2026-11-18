@@ -31,6 +31,11 @@ MpvPlayer {
     property alias watchTracker: watchTracker
     property alias malView: malView
 
+    /* Manga reader (mokuro) and its Toggl prompt */
+    property alias mangaView: mangaView
+    property alias mangaListView: mangaListView
+    property alias mangaToggl: mangaToggl
+
     property point cursorPosition: Qt.point(0, 0)
 
     property bool ocrMode: false
@@ -226,6 +231,15 @@ MpvPlayer {
                 definitionPopup.clearResults();
             }
         }
+    }
+
+    /* Waits a moment before resuming so that a brief slip of the cursor off
+     * the subtitles (which would pause/resume and clear the popup results)
+     * does not interrupt lookups. */
+    Timer {
+        id: hoverResumeTimer
+        interval: 350
+        onTriggered: root.resumeAfterHoverPause()
     }
 
     onFileLoaded: {
@@ -565,7 +579,7 @@ MpvPlayer {
         onClosed: {
             definitionPopup.clearResults();
             interactiveTimer.restart();
-            root.resumeAfterHoverPause();
+            hoverResumeTimer.restart();
         }
 
         onPlayerWidthChanged: definitionPopup.clearResults()
@@ -871,11 +885,12 @@ MpvPlayer {
             onHoveredChanged: {
                 if (!subtitleHover.hovered)
                 {
-                    root.resumeAfterHoverPause();
+                    hoverResumeTimer.restart();
                     popupLeaveTimer.restart();
                 }
                 else if (MementoSettings.searchPauseOnHover)
                 {
+                    hoverResumeTimer.stop();
                     popupLeaveTimer.stop();
                     /* Only a pause started here may be resumed automatically */
                     if (!root.state.pause)
@@ -1031,5 +1046,21 @@ MpvPlayer {
         id: malView
         anchors.fill: parent
         player: root
+    }
+
+    MangaView {
+        id: mangaView
+        anchors.fill: parent
+        player: root
+    }
+
+    MangaListView {
+        id: mangaListView
+        anchors.fill: parent
+        player: root
+    }
+
+    MangaToggl {
+        id: mangaToggl
     }
 }

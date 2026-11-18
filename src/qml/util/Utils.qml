@@ -4,6 +4,8 @@ import QtCore
 import QtQml
 import Ripose.Memento
 
+import "SubMatch.js" as SubMatch
+
 QtObject {
     /* Number of modal dialogs currently open. Dialogs started from the
      * dictionary popup raise it so the popup is not closed from under them. */
@@ -154,19 +156,27 @@ QtObject {
      * @return {title, episode}; episode is "" when none was found.
      */
     function parseMediaFileName(name) {
-        const tags = /\b(\d{3,4}p|\d{3,4}x\d{3,4}|x26[45]|h\.?26[45]|hevc|av1|avc|aac|flac|opus|ac3|eac3|dts|10bit|8bit|web[- ]?dl|web[- ]?rip|bd[- ]?rip|blu[- ]?ray|bd|dvd|dvdrip|hdtv|raw|multi[- ]?subs?|dual[- ]?audio|repack|proper|batch|uncensored|nf|amzn|cr|crunchyroll)\b/gi;
+        const tags = /\b(\d{3,4}p|\d{3,4}x\d{3,4}|x26[45]|h\.?26[45]|hevc|av1|avc|aac|flac|opus|ac3|eac3|dts|10bit|8bit|web(?:[- ]?(?:dl|rip))?|bd[- ]?rip|blu[- ]?ray|bd|dvd|dvdrip|hdtv|raw|multi[- ]?subs?|dual[- ]?audio|repack|proper|batch|uncensored|nf|amzn|cr|crunchyroll)\b/gi;
         const plain = name.replace(/\.[A-Za-z0-9]{2,4}$/, "");
+        /* A movie (year, no episode marker): keep numbers in its title */
+        const movie = SubMatch.movieTitle(name);
+        if (movie) {
+            return { title: movie, episode: "" };
+        }
         let s = plain.replace(/\[[^\]]*\]|\([^)]*\)|\{[^}]*\}|【[^】]*】/g, " ");
         s = Utils.cleanMediaText(s);
 
         const patterns = [
-            [/^(.*?)[ ._-]*\bS(\d{1,2})[ ._-]*E(\d{1,3})\b/i, "se"],
+            [/^(.*?)[ ._-]*\bS(\d{1,2})[ ._-]*E(\d{1,4})\b/i, "se"],
             [/^(.*?)[ ._-]*\b(\d{1,2})x(\d{2,3})\b/i, "se"],
-            [/^(.*?)[ ._-]*\bSeason[ ._]?(\d{1,2})[ ._-]*(?:Episode|Ep|E)?[ ._]*(\d{1,3})\b/i, "se"],
-            [/^(.*?)[ ._-]*\b(?:Episode|Ep|E)[ ._]*(\d{1,3})\b/i, "e"],
-            [/^(.*?)[ ._-]*第\s*(\d{1,3})\s*[話话回]/i, "e"],
-            [/^(.*?)[ ._-]*#\s*(\d{1,3})\b/i, "e"],
-            [/^(.*?)\s+-\s+(\d{1,3})(?:v\d)?(?:\s|$)/i, "e"]
+            [/^(.*?)[ ._-]*\bSeason[ ._]?(\d{1,2})[ ._-]*(?:Episode|Ep|E)?[ ._]*(\d{1,4})\b/i, "se"],
+            /* "Made in Abyss S2 - 03" */
+            [/^(.*?)\s+S(\d{1,2})\s+-\s+(\d{1,4}(?:\.\d)?)(?:v\d)?(?:\s|$)/i, "se"],
+            [/^(.*?)[ ._-]*\b(?:Episode|Ep|E)[ ._]*(\d{1,4})\b/i, "e"],
+            [/^(.*?)[ ._-]*第\s*(\d{1,4})\s*[話话回]/i, "e"],
+            [/^(.*?)[ ._-]*#\s*(\d{1,4})\b/i, "e"],
+            /* " - 1085", " - 12.5" */
+            [/^(.*?)\s+-\s+(\d{1,4}(?:\.\d)?)(?:v\d)?(?:\s|$)/i, "e"]
         ];
 
         let show = null;
@@ -178,22 +188,28 @@ QtObject {
                 show = m[1];
                 if (patterns[i][1] === "se") {
                     season = parseInt(m[2]);
-                    episode = parseInt(m[3]);
+                    episode = parseFloat(m[3]);
                 } else {
-                    episode = parseInt(m[2]);
+                    episode = parseFloat(m[2]);
                 }
                 break;
             }
         }
         if (show === null) {
-            const m = s.match(/^(.*\D)\s+(\d{1,3})$/);
+            /* "Show 12" or "Detective Conan 1120 1080p WEB": a bare number at
+             * the end once release tags are gone (not a year) */
+            const bare = Utils.cleanMediaText(s.replace(tags, " "));
+            const m = bare.match(/^(.*\D)\s+(?!(?:19|20)\d{2}$)(\d{1,4})$/);
             if (m && m[1].trim().length > 0) {
                 show = m[1];
                 episode = parseInt(m[2]);
             }
         }
         if (show === null) {
-            show = s;
+            /* No episode (a movie): cut at the year or the first release tag
+             * ("Dragon Ball Super Broly 2018 v3 BluRay ..." -> "Dragon Ball Super Broly") */
+            const m = s.match(/^(.*?\S)\s+(?:(?:19|20)\d{2}|v\d|\d{3,4}p|blu[- ]?ray|bd(?:rip)?|web(?:[- ]?(?:dl|rip))?|dvd(?:rip)?|hdtv|amzn|nf|cr)(?=\s|-|$)/i);
+            show = m ? m[1] : s;
         }
 
         show = Utils.cleanMediaText(show.replace(tags, " "));

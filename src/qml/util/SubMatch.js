@@ -47,10 +47,12 @@ function cleanName(s) {
     s = s.replace(/\b\d{3,4}\s*x\s*\d{3,4}\b/gi, " ");                     /* 1920x1080 */
     s = s.replace(/\b\d{3,4}[pi]\b/gi, " ");                               /* 1080p */
     s = s.replace(/\b(?:[xh]\.?26[45]|hevc|avc|av1|vp9|xvid|divx)\b/gi, " ");
-    s = s.replace(/\b(?:aac|flac|ac-?3|e-?ac-?3|ddp?|dts|opus|mp3|truehd|pcm)\s*\d?(?:\.\d)?\b/gi, " ");
+    /* Audio + channels: "AAC 2.0", "DDP2.0", "FLAC.5.1" (dotted names) */
+    s = s.replace(/\b(?:aac|flac|ac-?3|e-?ac-?3|ddp?|dts|opus|mp3|truehd|pcm)(?:[\s.]*\d(?:\.\d)?)?\b/gi, " ");
     s = s.replace(/\b\d{1,2}\s*-?\s*bits?\b/gi, " ");                     /* 10bit */
     s = s.replace(/\b(?:ma|hi)10p?\b/gi, " ");
     s = s.replace(/\b[257]\.[01]\b/g, " ");                               /* 5.1, 2.0 */
+    s = s.replace(/\bv\d\b/gi, " ");                                      /* release v3 (not 12v2) */
     s = s.replace(/\b(?:19[5-9]\d|20[0-4]\d)\b/g, " ");                   /* bare years */
     s = s.replace(/[_]+/g, " ");
     return s;
@@ -275,4 +277,30 @@ function subsForVideo(videoName, result) {
     result.unclear.forEach(function (u) { if (u.video === videoName) unclear = unclear.concat(u.candidates); });
     picks.sort(function (a, b) { return (b.lang === "ja") - (a.lang === "ja"); });
     return { subs: picks, unclear: unclear };
+}
+
+/*
+ * Title of a movie file, or null when the name looks like an episode.
+ * A movie has a year ("(2016)", ".2016.") and no episode marker (S01E03,
+ * " - 05", [05], Episode/Ep/E 5, 第5話). Numbers in the title stay:
+ * "Kizumonogatari Part 2 Nekketsu (2016) [BD].mkv" -> "Kizumonogatari Part 2 Nekketsu",
+ * "Your.Name.2016.1080p.BluRay.mkv" -> "Your Name".
+ */
+function movieTitle(fileName) {
+    var base = splitExt(fileName).base.replace(/^\s*\[[^\]]*\]\s*/, "");
+    if (/S\d{1,2}[ ._-]?E\d{1,4}(?!\d)|\s-\s*\d{1,4}(?:\.\d)?(?:v\d)?(?=\s|$|\[|\()|\[\s*\d{1,4}(?:v\d)?\s*\]|(?:^|[ ._])(?:Episode|Ep|E)[ ._]?\d{1,4}(?!\d)|第\s*\d{1,4}\s*[話话回]/i.test(base)) {
+        return null;
+    }
+    var m = base.match(/\s*[\[(]\s*(?:19[3-9]\d|20[0-4]\d)\s*[\])]|[ ._](?:19[3-9]\d|20[0-4]\d)(?=[ ._]|$)/);
+    if (!m || m.index === 0) {
+        return null;
+    }
+    var title = base.substring(0, m.index);
+    if (title.indexOf(" ") < 0) {
+        /* Dotted name: dots are spaces, but keep decimals like 2.0 */
+        title = title.replace(/[._](?!\d(?:\D|$))/g, " ");
+    }
+    title = title.replace(/\[[^\]]*\]|\([^)]*\)/g, " ").replace(/_/g, " ")
+        .replace(/\s+/g, " ").replace(/^[-\s]+|[-\s]+$/g, "");
+    return title.length > 0 ? title : null;
 }

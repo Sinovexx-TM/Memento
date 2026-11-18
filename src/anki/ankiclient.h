@@ -414,6 +414,18 @@ public:
      */
     Q_INVOKABLE void clearCardBuilderOverride();
 
+    /**
+     * @brief Manga reader: cards use this page image instead of a video
+     * screenshot, get no sentence audio and get these extra tags. An empty
+     * path turns it off.
+     */
+    Q_INVOKABLE void setMangaPage(const QString &imagePath, const QStringList &tags);
+
+    /**
+     * @brief true while the manga reader is supplying the card image.
+     */
+    Q_INVOKABLE bool mangaActive() const;
+
 signals:
     /**
      * @brief Emitted when the context is changed.

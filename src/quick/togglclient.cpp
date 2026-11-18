@@ -9,6 +9,7 @@
 #include <QNetworkRequest>
 #include <QRegularExpression>
 #include <QSettings>
+#include <QTimeZone>
 #include <QUrl>
 
 #include "util/directoryutils.h"
@@ -342,6 +343,29 @@ void TogglClient::logEntry(int durationSeconds, const QString &show, const QStri
     entries.append(entry);
     savePending(entries);
 
+    retryPending();
+}
+
+void TogglClient::logCustom(int durationSeconds, const QString &description,
+                            const QString &project, double endMs)
+{
+    if (durationSeconds <= 0)
+    {
+        return;
+    }
+    const QDateTime end = endMs > 0 ?
+        QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(endMs), QTimeZone::UTC) :
+        QDateTime::currentDateTimeUtc();
+    QJsonObject entry{
+        {"start", end.addSecs(-durationSeconds).toString(Qt::ISODate)},
+        {"duration", durationSeconds},
+        {"description", description},
+        {"project", project},
+        {"tags", QString()},
+    };
+    QJsonArray entries = loadPending();
+    entries.append(entry);
+    savePending(entries);
     retryPending();
 }
 

@@ -29,7 +29,14 @@ constexpr int TIMEOUT_MS = 20000;
 constexpr int LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
 constexpr const char *LIST_FIELDS =
     "list_status{status,num_episodes_watched,start_date,finish_date},"
-    "num_episodes,alternative_titles,media_type";
+    "num_episodes,alternative_titles,media_type,main_picture";
+constexpr const char *MANGA_FIELDS =
+    "list_status{status,num_chapters_read,num_volumes_read,start_date,finish_date},"
+    "num_chapters,num_volumes,alternative_titles,media_type,main_picture";
+constexpr int COVER_DOWNLOADS = 4;
+/* A failed cover download is tried this many times in all, a little later
+ * each time (MAL's CDN sometimes drops requests in a burst) */
+constexpr int COVER_TRIES = 4;
 
 QString configFile(const QString &name)
 {
@@ -467,6 +474,7 @@ QVariantMap MalClient::entryFromNode(const QJsonObject &node, const QJsonObject 
         {"synonyms", synonyms},
         {"episodes", node.value("num_episodes").toInt()},
         {"mediaType", node.value("media_type").toString()},
+        {"picture", node.value("main_picture").toObject().value("medium").toString()},
         {"status", status.value("status").toString()},
         {"watched", status.value("num_episodes_watched").toInt()},
         {"startDate", status.value("start_date").toString()},
@@ -483,31 +491,85 @@ void MalClient::fetchList()
     query.addQueryItem("limit", "1000");
     query.addQueryItem("nsfw", "true");
     url.setQuery(query);
-    fetchListPage(url, {});
+    fetchListPage(url, {}, false);
 }
 
-void MalClient::fetchListPage(const QUrl &url, QVariantList entries)
+void MalClient::fetchMangaList()
 {
-    api("GET", url, {}, [this, entries](bool ok, int, const QByteArray &body, const QString &error) mutable {
+    QUrl url(QString(API) + "/users/@me/mangalist");
+    QUrlQuery query;
+    query.addQueryItem("fields", MANGA_FIELDS);
+    query.addQueryItem("limit", "1000");
+    query.addQueryItem("nsfw", "true");
+    url.setQuery(query);
+    fetchListPage(url, {}, true);
+}
+
+QVariantList MalClient::cachedMangaList() const
+{
+    return readJson("mal_manga_cache.json").array().toVariantList();
+}
+
+QVariantMap MalClient::mangaFromNode(const QJsonObject &node, const QJsonObject &status)
+{
+    const QJsonObject alt = node.value("alternative_titles").toObject();
+    return QVariantMap{
+        {"id", node.value("id").toInt()},
+        {"title", node.value("title").toString()},
+        {"en", alt.value("en").toString()},
+        {"ja", alt.value("ja").toString()},
+        {"chapters", node.value("num_chapters").toInt()},
+        {"volumes", node.value("num_volumes").toInt()},
+        {"mediaType", node.value("media_type").toString()},
+        {"picture", node.value("main_picture").toObject().value("medium").toString()},
+        {"status", status.value("status").toString()},
+        {"chaptersRead", status.value("num_chapters_read").toInt()},
+        {"volumesRead", status.value("num_volumes_read").toInt()},
+        {"startDate", status.value("start_date").toString()},
+        {"finishDate", status.value("finish_date").toString()},
+        {"onList", !status.isEmpty()},
+    };
+}
+
+void MalClient::fetchListPage(const QUrl &url, QVariantList entries, bool manga)
+{
+    api("GET", url, {}, [this, entries, manga](bool ok, int, const QByteArray &body, const QString &error) mutable {
         if (!ok)
         {
-            emit listReady(false, cachedList(), error);
+            if (manga)
+            {
+                emit mangaListReady(false, cachedMangaList(), error);
+            }
+            else
+            {
+                emit listReady(false, cachedList(), error);
+            }
             return;
         }
         const QJsonObject obj = QJsonDocument::fromJson(body).object();
         for (const auto &item : obj.value("data").toArray())
         {
             const QJsonObject o = item.toObject();
-            entries << entryFromNode(o.value("node").toObject(), o.value("list_status").toObject());
+            const QJsonObject node = o.value("node").toObject();
+            const QJsonObject status = o.value("list_status").toObject();
+            entries << (manga ? mangaFromNode(node, status) : entryFromNode(node, status));
         }
         const QString next = obj.value("paging").toObject().value("next").toString();
         if (!next.isEmpty())
         {
-            fetchListPage(QUrl(next), entries);
+            fetchListPage(QUrl(next), entries, manga);
             return;
         }
-        writeJson("mal_list_cache.json", QJsonDocument(QJsonArray::fromVariantList(entries)));
-        emit listReady(true, entries, QString());
+        writeJson(manga ? "mal_manga_cache.json" : "mal_list_cache.json",
+                  QJsonDocument(QJsonArray::fromVariantList(entries)));
+        if (manga)
+        {
+            emit mangaListReady(true, entries, QString());
+        }
+        else
+        {
+            emit listReady(true, entries, QString());
+        }
     });
 }
 
@@ -552,16 +614,29 @@ void MalClient::search(const QString &query)
 
 void MalClient::updateEntry(int animeId, const QString &title, const QVariantMap &fields)
 {
+    queueUpdate(animeId, title, fields, false);
+}
+
+void MalClient::updateMangaEntry(int mangaId, const QString &title, const QVariantMap &fields)
+{
+    queueUpdate(mangaId, title, fields, true);
+}
+
+void MalClient::queueUpdate(int id, const QString &title, const QVariantMap &fields, bool manga)
+{
+    const QString kind = manga ? "manga" : "anime";
     /* A newer update of the same entry replaces a waiting one */
     for (int i = m_pending.size() - 1; i >= 0; --i)
     {
-        if (m_pending[i].toObject().value("id").toInt() == animeId)
+        const QJsonObject o = m_pending[i].toObject();
+        if (o.value("id").toInt() == id && o.value("kind").toString("anime") == kind)
         {
             m_pending.removeAt(i);
         }
     }
     QJsonObject entry;
-    entry["id"] = animeId;
+    entry["id"] = id;
+    entry["kind"] = kind;
     entry["title"] = title;
     entry["fields"] = QJsonObject::fromVariantMap(fields);
     m_pending.append(entry);
@@ -606,8 +681,11 @@ void MalClient::sendNext()
         form << qMakePair(key, value.isDouble() ?
             QString::number(static_cast<qint64>(value.toDouble())) : value.toString());
     }
-    const QUrl url(QStringLiteral("%1/anime/%2/my_list_status").arg(API).arg(id));
-    api("PATCH", url, formEncode(form), [this, id, title](bool ok, int, const QByteArray &body, const QString &error) {
+    const bool manga = entry.value("kind").toString("anime") == "manga";
+    const QUrl url(QStringLiteral("%1/%2/%3/my_list_status")
+                       .arg(QString(API), manga ? QStringLiteral("manga") : QStringLiteral("anime"))
+                       .arg(id));
+    api("PATCH", url, formEncode(form), [this, id, title, manga](bool ok, int, const QByteArray &body, const QString &error) {
         if (!ok)
         {
             setBusy(false);
@@ -619,8 +697,16 @@ void MalClient::sendNext()
             m_pending.removeFirst();
         }
         savePending();
-        updateCache(id, title, QJsonDocument::fromJson(body).object());
-        emit entryUpdated(id);
+        if (manga)
+        {
+            updateMangaCache(id, title, QJsonDocument::fromJson(body).object());
+            emit mangaEntryUpdated(id);
+        }
+        else
+        {
+            updateCache(id, title, QJsonDocument::fromJson(body).object());
+            emit entryUpdated(id);
+        }
         sendNext();
     });
 }
@@ -652,6 +738,157 @@ void MalClient::updateCache(int animeId, const QString &title, const QJsonObject
         list.append(QJsonObject::fromVariantMap(entryFromNode(node, status)));
     }
     writeJson("mal_list_cache.json", QJsonDocument(list));
+}
+
+void MalClient::updateMangaCache(int mangaId, const QString &title, const QJsonObject &status)
+{
+    QJsonArray list = readJson("mal_manga_cache.json").array();
+    bool found = false;
+    for (int i = 0; i < list.size(); ++i)
+    {
+        QJsonObject o = list[i].toObject();
+        if (o.value("id").toInt() != mangaId)
+        {
+            continue;
+        }
+        o["status"] = status.value("status").toString();
+        o["chaptersRead"] = status.value("num_chapters_read").toInt();
+        o["volumesRead"] = status.value("num_volumes_read").toInt();
+        o["startDate"] = status.value("start_date").toString();
+        o["finishDate"] = status.value("finish_date").toString();
+        o["onList"] = true;
+        list[i] = o;
+        found = true;
+    }
+    if (!found)
+    {
+        QJsonObject node;
+        node["id"] = mangaId;
+        node["title"] = title;
+        list.append(QJsonObject::fromVariantMap(mangaFromNode(node, status)));
+    }
+    writeJson("mal_manga_cache.json", QJsonDocument(list));
+}
+
+/* Covers */
+
+namespace
+{
+/* MAL's CDN sends JPEG or WebP under the same .jpg link: the file gets
+ * the extension of what it really is, or the image loader may refuse it. */
+QString imageExtension(const QByteArray &head)
+{
+    if (head.startsWith("RIFF") && head.mid(8, 4) == "WEBP")
+    {
+        return "webp";
+    }
+    if (head.startsWith("\x89PNG"))
+    {
+        return "png";
+    }
+    return "jpg";
+}
+
+QString coverBase(const QString &kind, int id)
+{
+    return configFile(QStringLiteral("mal_covers/%1_%2").arg(kind).arg(id));
+}
+}
+
+QString MalClient::cover(const QString &kind, int id, const QString &url)
+{
+    if (id <= 0 || (kind != "anime" && kind != "manga"))
+    {
+        return {};
+    }
+    const QString base = coverBase(kind, id);
+    for (const char *ext : {"jpg", "webp", "png"})
+    {
+        const QString file = base + "." + ext;
+        if (!QFile::exists(file))
+        {
+            continue;
+        }
+        /* Older builds saved everything as .jpg: fix the extension once */
+        QFile f(file);
+        if (f.open(QIODevice::ReadOnly))
+        {
+            const QString real = imageExtension(f.read(12));
+            f.close();
+            if (real != ext)
+            {
+                const QString fixed = base + "." + real;
+                QFile::remove(fixed);
+                if (QFile::rename(file, fixed))
+                {
+                    return QUrl::fromLocalFile(fixed).toString();
+                }
+            }
+        }
+        return QUrl::fromLocalFile(file).toString();
+    }
+    const QUrl source(url);
+    const QString key = kind + "_" + QString::number(id);
+    if (url.isEmpty() || source.scheme() != "https" ||
+        !source.host().endsWith("myanimelist.net") || m_coverRequested.contains(key))
+    {
+        return {};
+    }
+    m_coverRequested.insert(key);
+    m_coverQueue.append({kind, id, url});
+    downloadNextCover();
+    return {};
+}
+
+void MalClient::downloadNextCover()
+{
+    while (m_coverActive < COVER_DOWNLOADS && !m_coverQueue.isEmpty())
+    {
+        const CoverJob job = m_coverQueue.takeLast();   /* newest = rows on screen now */
+        ++m_coverActive;
+        QNetworkReply *reply = m_manager.get(QNetworkRequest(QUrl(job.url)));
+        connect(reply, &QNetworkReply::finished, this, [this, reply, job] {
+            reply->deleteLater();
+            --m_coverActive;
+            const QByteArray data = reply->readAll();
+            bool saved = false;
+            if (reply->error() == QNetworkReply::NoError && !data.isEmpty())
+            {
+                QDir().mkpath(configFile("mal_covers"));
+                const QString file = coverBase(job.kind, job.id) + "." + imageExtension(data.left(12));
+                QSaveFile out(file);
+                if (out.open(QIODevice::WriteOnly))
+                {
+                    out.write(data);
+                    saved = out.commit();
+                    if (saved)
+                    {
+                        emit coverReady(job.kind, job.id, QUrl::fromLocalFile(file).toString());
+                    }
+                }
+            }
+            if (!saved)
+            {
+                CoverJob retry = job;
+                ++retry.tries;
+                if (retry.tries < COVER_TRIES)
+                {
+                    /* Try again shortly, while the row is still on screen */
+                    QTimer::singleShot(retry.tries * 3000, this, [this, retry] {
+                        m_coverQueue.append(retry);
+                        downloadNextCover();
+                    });
+                }
+                else
+                {
+                    /* Give up for now: the row asks again the next time it
+                     * is shown */
+                    m_coverRequested.remove(job.kind + "_" + QString::number(job.id));
+                }
+            }
+            downloadNextCover();
+        });
+    }
 }
 
 /* Matches */

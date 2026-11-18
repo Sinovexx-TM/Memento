@@ -70,7 +70,7 @@ Item {
             return;
         }
 
-        if (MementoSettings.searchCardBuilder && cardBuilder.openFor(root.term))
+        if (MementoSettings.searchCardBuilder && !AnkiClient.mangaActive() && cardBuilder.openFor(root.term))
         {
             return;
         }

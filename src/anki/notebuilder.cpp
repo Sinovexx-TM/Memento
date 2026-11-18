@@ -24,6 +24,9 @@
 
 #include <QDir>
 #include <QHash>
+#include <QImage>
+#include <QMutex>
+#include <QTemporaryFile>
 #include <QSet>
 
 #include "anki/ankiconnect.h"
@@ -753,6 +756,67 @@ static bool createAudioMediaHelper(
  * @return true if the image was added to the context,
  * @return false otherwise.
  */
+/* Manga reader: the page image replaces the video screenshot, there is no
+ * sentence audio or video, and extra tags are added. */
+static QMutex s_mangaMutex;
+static QString s_mangaImage;
+static QStringList s_mangaTags;
+
+void Anki::Note::setImageSource(const QString &path, const QStringList &tags)
+{
+    QMutexLocker lock(&s_mangaMutex);
+    s_mangaImage = path;
+    s_mangaTags = tags;
+}
+
+bool Anki::Note::imageSourceActive()
+{
+    QMutexLocker lock(&s_mangaMutex);
+    return !s_mangaImage.isEmpty();
+}
+
+static QStringList mangaTags()
+{
+    QMutexLocker lock(&s_mangaMutex);
+    return s_mangaTags;
+}
+
+/**
+ * @brief Copies the manga page to a temporary file of the profile's image
+ * type. Empty when no manga page is set or it can't be read.
+ */
+static QString mangaScreenshot(const QString &ext)
+{
+    QString source;
+    {
+        QMutexLocker lock(&s_mangaMutex);
+        source = s_mangaImage;
+    }
+    if (source.isEmpty())
+    {
+        return {};
+    }
+    const QImage image(source);
+    if (image.isNull())
+    {
+        return {};
+    }
+    QTemporaryFile file(QDir::temp().filePath("memento_manga_XXXXXX" + ext));
+    file.setAutoRemove(false);
+    if (!file.open())
+    {
+        return {};
+    }
+    const QString path = file.fileName();
+    file.close();
+    if (!image.save(path) && !image.save(path, "JPG", 92))
+    {
+        QFile::remove(path);
+        return {};
+    }
+    return path;
+}
+
 static bool createScreenshotHelper(
     QString path,
     const QString &ext,
@@ -2353,11 +2417,22 @@ static bool createScreenshot(
 
     const QString imageExt = getImageFileExtension(profile.screenshotType());
 
-    const bool visibility = appCtx.player()->state()->subtitle()->visible();
-    appCtx.player()->controller()->setSubtitleVisibility(true);
-    QString path =
-        appCtx.player()->controller()->tempScreenshot(true, imageExt);
-    appCtx.player()->controller()->setSubtitleVisibility(visibility);
+    QString path;
+    if (Anki::Note::imageSourceActive())
+    {
+        path = mangaScreenshot(imageExt);
+        if (path.isEmpty())
+        {
+            return false;
+        }
+    }
+    else
+    {
+        const bool visibility = appCtx.player()->state()->subtitle()->visible();
+        appCtx.player()->controller()->setSubtitleVisibility(true);
+        path = appCtx.player()->controller()->tempScreenshot(true, imageExt);
+        appCtx.player()->controller()->setSubtitleVisibility(visibility);
+    }
 
     for (const auto &[params, fields] :
         fieldCtx.fieldsWithScreenshot.asKeyValueRange())
@@ -2392,8 +2467,13 @@ static bool createScreenshotVideo(
 
     const QString imageExt = getImageFileExtension(profile.screenshotType());
 
-    QString path =
+    QString path = Anki::Note::imageSourceActive() ?
+        mangaScreenshot(imageExt) :
         appCtx.player()->controller()->tempScreenshot(false, imageExt);
+    if (path.isEmpty())
+    {
+        return false;
+    }
     for (const auto &[params, fields] :
         fieldCtx.fieldsWithScreenshotVideo.asKeyValueRange())
     {
@@ -2450,7 +2530,7 @@ Anki::Note::Context Anki::Note::build(
     ctx.setDeck(profile.termDeck());
     ctx.setModel(profile.termModel());
     ctx.setDuplicatePolicy(profile.duplicatePolicy());
-    ctx.setTags(profile.tags());
+    ctx.setTags(profile.tags() + mangaTags());
 
     FieldContext fieldCtx;
 
@@ -2505,10 +2585,17 @@ Anki::Note::Context Anki::Note::build(
     if (media)
     {
         createAudio(term, fieldCtx, ctx);
-        createAudioMedia(appCtx, profile, term, fieldCtx, ctx);
+        const bool manga = Anki::Note::imageSourceActive();
+        if (!manga)
+        {
+            createAudioMedia(appCtx, profile, term, fieldCtx, ctx);
+        }
         createScreenshot(appCtx, profile, fieldCtx, ctx);
         createScreenshotVideo(appCtx, profile, fieldCtx, ctx);
-        createVideo(appCtx, profile, term, fieldCtx, ctx);
+        if (!manga)
+        {
+            createVideo(appCtx, profile, term, fieldCtx, ctx);
+        }
 
         ctx.fileMap.reserve(fieldCtx.files.size());
         for (const GlossaryBuilder::FileInfo &fileInfo : fieldCtx.files)
@@ -2530,7 +2617,7 @@ Anki::Note::Context Anki::Note::build(
     ctx.setDeck(profile.kanjiDeck());
     ctx.setModel(profile.kanjiModel());
     ctx.setDuplicatePolicy(profile.duplicatePolicy());
-    ctx.setTags(profile.tags());
+    ctx.setTags(profile.tags() + mangaTags());
 
     FieldContext fieldCtx;
 
@@ -2582,10 +2669,17 @@ Anki::Note::Context Anki::Note::build(
 
     if (media)
     {
-        createAudioMedia(appCtx, profile, kanji, fieldCtx, ctx);
+        const bool manga = Anki::Note::imageSourceActive();
+        if (!manga)
+        {
+            createAudioMedia(appCtx, profile, kanji, fieldCtx, ctx);
+        }
         createScreenshot(appCtx, profile, fieldCtx, ctx);
         createScreenshotVideo(appCtx, profile, fieldCtx, ctx);
-        createVideo(appCtx, profile, kanji, fieldCtx, ctx);
+        if (!manga)
+        {
+            createVideo(appCtx, profile, kanji, fieldCtx, ctx);
+        }
 
         ctx.fileMap.reserve(fieldCtx.files.size());
         for (const GlossaryBuilder::FileInfo &fileInfo : fieldCtx.files)

@@ -58,17 +58,29 @@ function extraLabel(base) {
  * the group and release tags ("Dragon.Ball.Super.Beerus.S01E06.1080p..."
  * -> "Dragon Ball Super Beerus") */
 function looseShowName(fileName) {
+    var movie = SubMatch.movieTitle(fileName);
+    if (movie) {
+        return movie;
+    }
     var base = SubMatch.splitExt(fileName).base;
     var s = base.replace(/^\s*\[[^\]]*\]\s*/, "");
     /* Dots and underscores as spaces, but keep decimals like 12.5 */
     s = s.replace(/[._](?!\d(?:\D|$))/g, " ").replace(/_/g, " ");
+    /* Tag groups ([BDRip 1920x1080], (1080p)) go first; [05] / (05) stay */
+    s = s.replace(/\[(?!\s*\d{1,4}(?:v\d)?\s*\])[^\]]*\]|\((?!\s*\d{1,4}(?:v\d)?\s*\))[^)]*\)/g, " ");
     var cuts = [
         /\bS\d{1,2}\s?E\d{1,4}\b/i,
+        /\sE\d{1,4}(?=\s|$)/i,
         /\s-\s*\d{1,4}(?:\.\d)?(?:v\d)?\b/,
         /\[\s*\d{1,4}(?:v\d)?\s*\]/,
         /\b(?:Episode|Ep)\s*\d{1,4}\b/i,
         /第\s*\d{1,4}\s*[話话回]/,
-        /\s\d{1,3}(?:v\d)?(?:\s|$)/
+        /* A bare number, up to 4 digits (Detective.Conan.1120), but not a year */
+        /\s(?!(?:19|20)\d{2}(?:\s|$))\d{1,4}(?:v\d)?(?:\s|$)/,
+        /* No episode number (a movie): cut at the year or the first release tag
+         * ("Dragon.Ball.Super.Broly.2018.v3.BluRay.1080p..." -> "Dragon Ball Super Broly") */
+        /\s(?:19|20)\d{2}(?=\s|$)/,
+        /\s(?:v\d|\d{3,4}p|\d{3,4}x\d{3,4}|BluRay|Blu-ray|BDRip|BD|DVD(?:Rip)?|WEB(?:-?DL|-?Rip)?|AMZN|NF|CR|DSNP|HDTV|x26[45]|HEVC|AVC|Hi10P?|FLAC|AAC|Dual[- ]Audio)(?=\s|-|$)/i
     ];
     for (var i = 0; i < cuts.length; ++i) {
         var m = s.match(cuts[i]);
@@ -192,7 +204,8 @@ function buildSeries(folder, files, history, names, media) {
 
         var k = key(f.path);
         var h = history[k] || {};
-        var num = !extra && info.kind === "episode" ? info.ep : null;
+        var movie = SubMatch.movieTitle(fileName);
+        var num = !extra && !movie && info.kind === "episode" ? info.ep : null;
         var label;
         var shortLabel;
         if (num !== null) {
@@ -206,7 +219,8 @@ function buildSeries(folder, files, history, names, media) {
             }
             shortLabel = label;
         } else {
-            label = SubMatch.cleanName(base).replace(/\s+/g, " ").trim() || base;
+            /* No episode number (a movie): its title without release tags */
+            label = movie || looseShowName(fileName);
             shortLabel = label;
         }
         var dur = h.dur || 0;
