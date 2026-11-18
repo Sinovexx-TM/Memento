@@ -34,6 +34,9 @@ constexpr const char *MANGA_FIELDS =
     "list_status{status,num_chapters_read,num_volumes_read,start_date,finish_date},"
     "num_chapters,num_volumes,alternative_titles,media_type,main_picture";
 constexpr int COVER_DOWNLOADS = 4;
+/* A failed cover download is tried this many times in all, a little later
+ * each time (MAL's CDN sometimes drops requests in a burst) */
+constexpr int COVER_TRIES = 4;
 
 QString configFile(const QString &name)
 {
@@ -866,9 +869,22 @@ void MalClient::downloadNextCover()
             }
             if (!saved)
             {
-                /* Failed (e.g. too many at once): the row asks again the next
-                 * time it is shown */
-                m_coverRequested.remove(job.kind + "_" + QString::number(job.id));
+                CoverJob retry = job;
+                ++retry.tries;
+                if (retry.tries < COVER_TRIES)
+                {
+                    /* Try again shortly, while the row is still on screen */
+                    QTimer::singleShot(retry.tries * 3000, this, [this, retry] {
+                        m_coverQueue.append(retry);
+                        downloadNextCover();
+                    });
+                }
+                else
+                {
+                    /* Give up for now: the row asks again the next time it
+                     * is shown */
+                    m_coverRequested.remove(job.kind + "_" + QString::number(job.id));
+                }
             }
             downloadNextCover();
         });

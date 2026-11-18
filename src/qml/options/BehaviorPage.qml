@@ -719,6 +719,57 @@ Page {
             }
 
             SettingsBox {
+                Layout.preferredWidth: root.preferredWidth
+                Layout.alignment: Qt.AlignHCenter
+                Layout.bottomMargin: root.groupSpacing
+                title: qsTr("File names (saved immediately)")
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: root.groupSpacing
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Show the file name on the pause screen")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            checked: String(WatchHistory.option("pause-file-name", false)) === "true"
+                            onClicked: WatchHistory.setOption("pause-file-name", checked)
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Show the folder name on Library series pages")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            checked: String(WatchHistory.option("series-folder-name", true)) === "true"
+                            onClicked: WatchHistory.setOption("series-folder-name", checked)
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Label.WordWrap
+                        color: MementoPalette.placeholderText
+                        text: qsTr("When the pause screen hides it, hover the title to see the file name.")
+                    }
+                }
+            }
+
+            SettingsBox {
                 id: malBox
                 Layout.preferredWidth: root.preferredWidth
                 Layout.alignment: Qt.AlignHCenter

@@ -304,7 +304,8 @@ Rectangle {
                                 return root.mokuroStatus;
                             }
                             return root.undone.length === 1 ? qsTr("1 volume has no text yet.") :
-                                qsTr("%1 volumes have no text yet.").arg(root.undone.length);
+                                (root.undone.length === 1 ? qsTr("1 volume has no text yet.") :
+                                 qsTr("%1 volumes have no text yet.").arg(root.undone.length));
                         }
                     }
                     PageButton {
@@ -454,7 +455,8 @@ Rectangle {
                             }
                             Text {
                                 width: 150
-                                text: qsTr("%1 volumes").arg(modelData.volumes.length)
+                                text: modelData.volumes.length === 1 ? qsTr("1 volume") :
+                                      qsTr("%1 volumes").arg(modelData.volumes.length)
                                 color: "#a3a3a3"
                                 font.pixelSize: 11
                             }
@@ -612,7 +614,8 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(parent.width - 40, 480)
         modal: true
-        title: qsTr("Run mokuro on %1 volumes?").arg(root.undone.length)
+        title: root.undone.length === 1 ? qsTr("Run mokuro on 1 volume?") :
+                                          qsTr("Run mokuro on %1 volumes?").arg(root.undone.length)
         standardButtons: Dialog.Yes | Dialog.Cancel
         onAccepted: MangaLibrary.runMokuro(root.undone.map(v => v.path))
 

@@ -122,7 +122,11 @@ Rectangle {
         WatchHistory.searchAniList(series.guess, "auto:" + key);
     }
 
+    /* Settings > Behavior > File names */
+    property bool showFolderName: true
+
     function showSeries(series) {
+        root.showFolderName = String(WatchHistory.option("series-folder-name", true)) === "true";
         root.currentKey = series ? series.key : "";
         root.current = series;
         seriesFlick.contentY = 0;
@@ -722,6 +726,7 @@ Rectangle {
 
                     Text {
                         Layout.fillWidth: true
+                        visible: root.current !== null && (root.current.loose || root.showFolderName)
                         text: root.current ? (root.current.loose ?
                                                   qsTr("Loose files in the library folder") :
                                                   root.current.folderName) : ""

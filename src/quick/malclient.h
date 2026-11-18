@@ -156,6 +156,7 @@ private:
         QString kind;
         int id;
         QString url;
+        int tries{0};
     };
     QList<CoverJob> m_coverQueue;
     QSet<QString> m_coverRequested;

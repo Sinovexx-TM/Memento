@@ -46,6 +46,14 @@ Item {
     /* Set once the pause has lasted long enough */
     property bool ready: false
 
+    /* Settings > Behavior > File names (read each time the screen shows) */
+    property bool showFileName: false
+    onReadyChanged: {
+        if (root.ready) {
+            root.showFileName = String(WatchHistory.option("pause-file-name", false)) === "true";
+        }
+    }
+
     /* Space the text can use above the subtitles */
     readonly property real limit: root.subtitleItem.visible ? root.subtitleItem.y - 24 : root.height - 24
     readonly property real textY: Math.min(root.height * 0.2, root.limit - panel.height)
@@ -138,6 +146,14 @@ Item {
             wrapMode: Text.Wrap
             maximumLineCount: 3
             elide: Text.ElideRight
+
+            /* The raw file name on hover when it isn't shown below */
+            HoverHandler {
+                id: titleHover
+            }
+            ToolTip.visible: titleHover.hovered && !root.showFileName && root.fileName.length > 0
+            ToolTip.delay: 600
+            ToolTip.text: root.fileName
         }
 
         Label {
@@ -152,7 +168,7 @@ Item {
 
         Label {
             width: panel.width
-            visible: text.length > 0
+            visible: root.showFileName && text.length > 0
             text: root.fileName
             color: "#8a8a8a"
             font.pixelSize: Math.max(12, root.height * 0.026)
