@@ -353,6 +353,50 @@ Page {
                 Layout.bottomMargin: root.groupSpacing
                 title: qsTr("Toggl (saved immediately)")
 
+                property var workspaces: []
+                property var projects: [{ name: "", label: "" }]
+                property string listError: ""
+
+                function loadLists() {
+                    togglBox.listError = "";
+                    TogglClient.loadWorkspaces();
+                    TogglClient.loadProjects();
+                }
+
+                Component.onCompleted: {
+                    if (TogglClient.hasToken()) {
+                        togglBox.loadLists();
+                    }
+                }
+
+                Connections {
+                    target: TogglClient
+                    function onWorkspacesLoaded(success, workspaces, error) {
+                        if (!success) {
+                            togglBox.listError = error;
+                            return;
+                        }
+                        const list = [{ id: 0, name: qsTr("(default workspace)") }].concat(workspaces);
+                        togglBox.workspaces = list;
+                        workspaceBox.currentIndex = Math.max(0, list.findIndex(w => w.id === TogglClient.workspaceId));
+                    }
+                    function onProjectsLoaded(success, projects, error) {
+                        if (!success) {
+                            togglBox.listError = error;
+                            return;
+                        }
+                        let list = [{ id: 0, name: "" }].concat(projects);
+                        /* Keep a saved project that isn't in the list (archived, renamed) */
+                        if (TogglClient.project.length > 0 &&
+                                !list.some(p => p.name.toLowerCase() === TogglClient.project.toLowerCase())) {
+                            list.push({ id: -1, name: TogglClient.project });
+                        }
+                        togglBox.projects = list;
+                        projectBox.currentIndex = Math.max(0, list.findIndex(
+                            p => p.name.toLowerCase() === TogglClient.project.toLowerCase()));
+                    }
+                }
+
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: root.groupSpacing
@@ -439,13 +483,45 @@ Page {
                         Label {
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignLeft
-                            text: qsTr("Description")
+                            wrapMode: Label.WordWrap
+                            text: qsTr("API token (toggl.com → Profile settings → API Token)")
                         }
                         TextField {
                             Layout.alignment: Qt.AlignRight
-                            Layout.preferredWidth: 220
-                            text: TogglClient.description
-                            onEditingFinished: TogglClient.description = text
+                            Layout.preferredWidth: 260
+                            echoMode: TextInput.Password
+                            placeholderText: TogglClient.hasToken() ? qsTr("saved (type to replace)") : qsTr("paste your token")
+                            onEditingFinished: {
+                                if (text.length > 0) {
+                                    TogglClient.setToken(text);
+                                    text = "";
+                                    togglBox.loadLists();
+                                }
+                            }
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            text: qsTr("Workspace")
+                        }
+                        ComboBox {
+                            id: workspaceBox
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 260
+                            textRole: "name"
+                            valueRole: "id"
+                            model: togglBox.workspaces
+                            onActivated: {
+                                TogglClient.workspaceId = currentValue;
+                                TogglClient.loadProjects();
+                            }
                         }
                     }
 
@@ -459,25 +535,71 @@ Page {
                             Layout.alignment: Qt.AlignLeft
                             text: qsTr("Project")
                         }
+                        ComboBox {
+                            id: projectBox
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 260
+                            textRole: "name"
+                            valueRole: "name"
+                            model: togglBox.projects
+                            displayText: currentText.length > 0 ? currentText : qsTr("(no project)")
+                            delegate: ItemDelegate {
+                                required property var modelData
+                                width: projectBox.width
+                                text: modelData.name.length > 0 ? modelData.name : qsTr("(no project)")
+                            }
+                            onActivated: TogglClient.project = currentValue
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Description ({show} and {episode} are filled in)")
+                        }
                         TextField {
                             Layout.alignment: Qt.AlignRight
-                            Layout.preferredWidth: 220
-                            text: TogglClient.project
-                            onEditingFinished: TogglClient.project = text
+                            Layout.preferredWidth: 260
+                            placeholderText: "{show} E{episode}"
+                            text: TogglClient.description
+                            onEditingFinished: TogglClient.description = text
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            text: qsTr("Tags (comma separated, optional)")
+                        }
+                        TextField {
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 260
+                            text: TogglClient.tags
+                            onEditingFinished: TogglClient.tags = text
                         }
                     }
 
                     Label {
                         Layout.fillWidth: true
                         wrapMode: Label.WordWrap
-                        color: MementoPalette.placeholderText
-                        text: (TogglClient.hasToken() ?
-                                   qsTr("Token found: %1") :
-                                   qsTr("No token yet. Put your Toggl API token in %1"))
-                                  .arg(TogglClient.tokenPath) +
-                              (TogglClient.pendingCount > 0 ?
-                                   "
-" + qsTr("%1 entry(s) waiting to be sent.").arg(TogglClient.pendingCount) : "")
+                        color: togglBox.listError.length > 0 ? "#e06c6c" : MementoPalette.placeholderText
+                        text: [
+                            togglBox.listError,
+                            qsTr("Example: %1").arg(TogglClient.describe("Frieren", "12")),
+                            TogglClient.pendingCount > 0 ?
+                                qsTr("%1 entry(s) waiting to be sent.").arg(TogglClient.pendingCount) : ""
+                        ].filter(x => x.length > 0).join("\n")
                     }
                 }
             }
@@ -590,6 +712,15 @@ Page {
                         }
                     }
 
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Label.WordWrap
+                        textFormat: Text.StyledText
+                        linkColor: "#6ea8fe"
+                        text: qsTr("<a href=\"https://myanimelist.net/apiconfig\">How to get a client ID</a>: on that page click Create ID, App Type <b>other</b>, App Redirect URL <b>%1</b>, fill in the rest, submit, then copy the Client ID here.").arg(MalClient.redirectUri)
+                        onLinkActivated: link => MalClient.openUrl(link)
+                    }
+
                     SettingsBoxSeparator {
                         Layout.fillWidth: true
                     }
@@ -624,7 +755,6 @@ Page {
                         color: MementoPalette.placeholderText
                         text: [
                             MalClient.loginStatus,
-                            qsTr("Register the app at myanimelist.net/apiconfig as type \"other\" with redirect URL %1.").arg(MalClient.redirectUri),
                             MalClient.pendingCount > 0 ? qsTr("%1 update(s) waiting to be sent.").arg(MalClient.pendingCount) : ""
                         ].filter(x => x.length > 0).join("\n")
                     }

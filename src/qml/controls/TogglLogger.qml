@@ -193,6 +193,15 @@ Item {
         return !(root.contentEnd > 0 && pos >= root.contentEnd);
     }
 
+    /* Show and episode for the Toggl description: "Show", "9" (or "SP1") */
+    function labelParts() {
+        const info = Utils.parseMediaInfo(root.path, root.viewTitle);
+        const show = info.title && info.title.length > 0 ? info.title : "";
+        const episode = (info.episode ?? "").trim();
+        const number = episode.match(/^(?:episode\s*)?(\d+(?:\.\d+)?)$/i);
+        return { show: show, episode: number ? number[1] : episode };
+    }
+
     function label() {
         const info = Utils.parseMediaInfo(root.path, root.viewTitle);
         const show = info.title && info.title.length > 0 ? info.title : qsTr("this episode");
@@ -437,7 +446,9 @@ Item {
             }
             if (doToggl) {
                 prompt.waitToggl = true;
-                TogglClient.logEntry(prompt.editing ? minutesBox.value * 60 : prompt.seconds);
+                const parts = root.labelParts();
+                TogglClient.logEntry(prompt.editing ? minutesBox.value * 60 : prompt.seconds,
+                                     parts.show, parts.episode);
             }
         }
 

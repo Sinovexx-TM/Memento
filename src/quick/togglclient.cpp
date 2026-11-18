@@ -7,6 +7,7 @@
 #include <QJsonObject>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QUrl>
 
@@ -89,7 +90,7 @@ void TogglClient::setUsePlayedTime(bool value)
 
 QString TogglClient::description() const
 {
-    return readOption("description", QStringLiteral("AJATT - Anime")).toString();
+    return readOption("description", QStringLiteral("{show} E{episode}")).toString();
 }
 
 void TogglClient::setDescription(const QString &value)
@@ -100,13 +101,166 @@ void TogglClient::setDescription(const QString &value)
 
 QString TogglClient::project() const
 {
-    return readOption("project", QStringLiteral("Anime")).toString();
+    return readOption("project", QString()).toString();
 }
 
 void TogglClient::setProject(const QString &value)
 {
     writeOption("project", value);
     emit optionsChanged();
+}
+
+QString TogglClient::tags() const
+{
+    return readOption("tags", QString()).toString();
+}
+
+void TogglClient::setTags(const QString &value)
+{
+    writeOption("tags", value);
+    emit optionsChanged();
+}
+
+double TogglClient::workspaceId() const
+{
+    return readOption("workspace-id", 0.0).toDouble();
+}
+
+void TogglClient::setWorkspaceId(double value)
+{
+    writeOption("workspace-id", value);
+    /* Project ids belong to a workspace */
+    m_workspaceId = 0;
+    m_projectId = 0;
+    m_projectIdName.clear();
+    emit optionsChanged();
+}
+
+void TogglClient::setToken(const QString &token)
+{
+    const QString path = configFile("toggl_token.txt");
+    if (token.trimmed().isEmpty())
+    {
+        QFile::remove(path);
+    }
+    else
+    {
+        QFile file(path);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+        {
+            file.write(token.trimmed().toUtf8());
+        }
+    }
+    m_workspaceId = 0;
+    m_projectId = 0;
+    m_projectIdName.clear();
+    emit optionsChanged();
+}
+
+QString TogglClient::describe(const QString &show, const QString &episode) const
+{
+    QString text = description();
+    if (episode.trimmed().isEmpty())
+    {
+        /* No episode: drop the placeholder and what is glued to it ("E{episode}") */
+        static const QRegularExpression glued(QStringLiteral("\\S*\\{episode\\}\\S*"));
+        text.remove(glued);
+    }
+    text.replace(QStringLiteral("{show}"), show.trimmed());
+    text.replace(QStringLiteral("{episode}"), episode.trimmed());
+    return text.simplified();
+}
+
+void TogglClient::withWorkspace(std::function<void(bool ok, const QString &error)> done)
+{
+    if (m_workspaceId != 0)
+    {
+        done(true, {});
+        return;
+    }
+    const qint64 chosen = static_cast<qint64>(workspaceId());
+    if (chosen != 0)
+    {
+        m_workspaceId = chosen;
+        done(true, {});
+        return;
+    }
+    request("GET", "/me", {}, [this, done] (bool ok, const QByteArray &body, const QString &error) {
+        if (!ok)
+        {
+            done(false, error);
+            return;
+        }
+        m_workspaceId = QJsonDocument::fromJson(body).object()
+            .value("default_workspace_id").toInteger();
+        if (m_workspaceId == 0)
+        {
+            done(false, tr("Toggl did not return a workspace."));
+            return;
+        }
+        done(true, {});
+    });
+}
+
+void TogglClient::loadWorkspaces()
+{
+    if (token().isEmpty())
+    {
+        emit workspacesLoaded(false, {}, tr("Enter your Toggl API token first."));
+        return;
+    }
+    request("GET", "/me/workspaces", {}, [this] (bool ok, const QByteArray &body, const QString &error) {
+        if (!ok)
+        {
+            emit workspacesLoaded(false, {}, error);
+            return;
+        }
+        QVariantList list;
+        for (const QJsonValue &value : QJsonDocument::fromJson(body).array())
+        {
+            const QJsonObject item = value.toObject();
+            list << QVariantMap{
+                {"id", static_cast<double>(item.value("id").toInteger())},
+                {"name", item.value("name").toString()},
+            };
+        }
+        emit workspacesLoaded(true, list, {});
+    });
+}
+
+void TogglClient::loadProjects()
+{
+    if (token().isEmpty())
+    {
+        emit projectsLoaded(false, {}, tr("Enter your Toggl API token first."));
+        return;
+    }
+    withWorkspace([this] (bool ok, const QString &error) {
+        if (!ok)
+        {
+            emit projectsLoaded(false, {}, error);
+            return;
+        }
+        const QString path = QString("/workspaces/%1/projects?active=true&per_page=200")
+            .arg(m_workspaceId);
+        request("GET", path, {}, [this] (bool ok, const QByteArray &body, const QString &error) {
+            if (!ok)
+            {
+                emit projectsLoaded(false, {}, error);
+                return;
+            }
+            QVariantList list;
+            for (const QJsonValue &value : QJsonDocument::fromJson(body).array())
+            {
+                const QJsonObject item = value.toObject();
+                list << QVariantMap{
+                    {"id", static_cast<double>(item.value("id").toInteger())},
+                    {"name", item.value("name").toString()},
+                };
+            }
+            emit projectsLoaded(true, list, {});
+        });
+    });
 }
 
 QString TogglClient::tokenPath() const
@@ -167,7 +321,7 @@ void TogglClient::savePending(const QJsonArray &entries)
     emit pendingChanged();
 }
 
-void TogglClient::logEntry(int durationSeconds)
+void TogglClient::logEntry(int durationSeconds, const QString &show, const QString &episode)
 {
     if (durationSeconds <= 0)
     {
@@ -178,8 +332,9 @@ void TogglClient::logEntry(int durationSeconds)
     QJsonObject entry{
         {"start", start.toString(Qt::ISODate)},
         {"duration", durationSeconds},
-        {"description", description()},
+        {"description", describe(show, episode)},
         {"project", project()},
+        {"tags", tags()},
     };
 
     /* Saved before sending, so a crash or a failed call never loses it */
@@ -203,7 +358,7 @@ void TogglClient::retryPending()
     }
     if (token().isEmpty())
     {
-        emit finished(false, tr("No Toggl token. Put your API token in %1").arg(tokenPath()));
+        emit finished(false, tr("No Toggl API token (Options > Behavior > Toggl)."));
         return;
     }
 
@@ -277,17 +432,10 @@ void TogglClient::sendNext()
 
     if (m_workspaceId == 0)
     {
-        request("GET", "/me", {}, [this] (bool ok, const QByteArray &body, const QString &error) {
+        withWorkspace([this] (bool ok, const QString &error) {
             if (!ok)
             {
                 fail(error);
-                return;
-            }
-            m_workspaceId = QJsonDocument::fromJson(body).object()
-                .value("default_workspace_id").toInteger();
-            if (m_workspaceId == 0)
-            {
-                fail(tr("Toggl did not return a workspace."));
                 return;
             }
             sendNext();
@@ -337,6 +485,18 @@ void TogglClient::sendNext()
     if (!projectName.isEmpty())
     {
         body.insert("project_id", m_projectId);
+    }
+    QJsonArray tagList;
+    for (const QString &tag : entry.value("tags").toString().split(',', Qt::SkipEmptyParts))
+    {
+        if (!tag.trimmed().isEmpty())
+        {
+            tagList.append(tag.trimmed());
+        }
+    }
+    if (!tagList.isEmpty())
+    {
+        body.insert("tags", tagList);
     }
 
     const QString path = QString("/workspaces/%1/time_entries").arg(m_workspaceId);

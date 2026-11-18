@@ -44,18 +44,7 @@ QString WatchHistory::libraryRoot() const
 {
     QSettings settings;
     settings.beginGroup(GROUP);
-    QString root = settings.value("root").toString();
-    if (root.isEmpty())
-    {
-        /* Default: Documents/Anime Files/Anime when it exists */
-        const QString guess = QDir(
-            QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
-            .filePath("Anime Files/Anime");
-        if (QFileInfo(guess).isDir())
-        {
-            root = guess;
-        }
-    }
+    const QString root = settings.value("root").toString();
     return root.isEmpty() ? QString() : QDir::cleanPath(root);
 }
 
