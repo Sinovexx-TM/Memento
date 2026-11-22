@@ -64,6 +64,7 @@
 #include "quick/keytracker.h"
 #include "quick/paths.h"
 #include "quick/togglclient.h"
+#include "quick/gamepad.h"
 #include "quick/subfiles.h"
 #include "quick/watchhistory.h"
 #include "quick/malclient.h"
@@ -273,6 +274,9 @@ static void registerQmlTypes(Context &context)
     );
     qmlRegisterSingletonInstance<TogglClient>(
         MEMENTO_URI, 1, 0, "TogglClient", new TogglClient(&context)
+    );
+    qmlRegisterSingletonInstance<Gamepad>(
+        MEMENTO_URI, 1, 0, "Gamepad", new Gamepad(&context)
     );
     qmlRegisterSingletonInstance<KeyTracker>(
         MEMENTO_URI, 1, 0, "KeyTracker", context.keyTracker()

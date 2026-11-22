@@ -183,6 +183,7 @@ target_link_libraries(
     PRIVATE settings
     PRIVATE subtitle
     PRIVATE togglclient
+    PRIVATE gamepad
     PRIVATE subfiles
     PRIVATE watchhistory
     PRIVATE malclient

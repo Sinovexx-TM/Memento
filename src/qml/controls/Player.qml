@@ -746,6 +746,52 @@ MpvPlayer {
         player: root
     }
 
+    /* Xbox-style controller: A play/pause, left/right seek, LB/RB previous/
+     * next subtitle line, up/down volume, Start fullscreen. The log prompt
+     * gets the buttons first while it is open. */
+    Connections {
+        target: Gamepad
+        function onButtonPressed(name) {
+            if (togglLogger.handleGamepad(name))
+                return;
+            if (libraryView.visible || Utils.modalDialogs > 0)
+                return;
+            switch (name) {
+            case "a":
+                if (root.state.pause)
+                    root.controller.play();
+                else
+                    root.controller.pause();
+                break;
+            case "left":
+            case "right": {
+                const seconds = Number(WatchHistory.option("arrow-seconds", 5));
+                const direction = name === "left" ? -1 : 1;
+                root.controller.command(["seek", String(direction * seconds), "exact"]);
+                root.showOsc();
+                break;
+            }
+            case "lb":
+                root.jumpLine(-1);
+                break;
+            case "rb":
+                root.jumpLine(1);
+                break;
+            case "up":
+            case "down": {
+                const step = name === "up" ? 5 : -5;
+                const volume = Math.max(0, Math.min(100, Math.round(root.state.volume) + step));
+                root.controller.setVolume(volume);
+                root.showOsc();
+                break;
+            }
+            case "start":
+                root.controller.setFullscreen(!root.state.fullscreen);
+                break;
+            }
+        }
+    }
+
     SubMatcher {
         id: subMatcher
         player: root

@@ -239,6 +239,30 @@ Item {
         return false;
     }
 
+    /* Controller buttons while the prompt is open: A = Log (Retry after a
+     * failure), B = Skip (Later), X / Y = tick or untick Toggl / MAL.
+     * Returns true when the prompt is open, so the player ignores the press. */
+    function handleGamepad(name) {
+        if (!prompt.opened)
+            return false;
+        if (prompt.sending)
+            return true;
+        if (name === "a") {
+            if (prompt.failed)
+                prompt.retry();
+            else if ((prompt.togglShown && togglCheck.checked) ||
+                     (prompt.malShown && malCheck.checked && malCheck.enabled))
+                prompt.send();
+        } else if (name === "b") {
+            prompt.finish();
+        } else if (name === "x" && prompt.togglShown && !prompt.failed) {
+            togglCheck.checked = !togglCheck.checked;
+        } else if (name === "y" && prompt.malShown && malCheck.enabled && !prompt.failed) {
+            malCheck.checked = !malCheck.checked;
+        }
+        return true;
+    }
+
     /* For the main window: true when quitting must wait for the prompt */
     function askBeforeQuit() {
         if (root.askIfLate()) {

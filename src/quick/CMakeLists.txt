@@ -178,3 +178,17 @@ target_link_libraries(
     PUBLIC Qt6::Core
     PRIVATE utils
 )
+
+add_library(
+    gamepad
+    gamepad.cpp
+    gamepad.h
+)
+target_compile_features(gamepad PRIVATE cxx_std_20)
+target_include_directories(gamepad PRIVATE ${MEMENTO_INCLUDE_DIRS})
+target_compile_options(gamepad PRIVATE ${MEMENTO_COMPILER_FLAGS})
+target_link_libraries(
+    gamepad
+    PUBLIC Qt6::Core
+    PRIVATE Qt6::Gui
+)
