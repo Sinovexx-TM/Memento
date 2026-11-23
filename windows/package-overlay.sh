@@ -37,6 +37,8 @@ curl -fL --retry 3 \
 mkdir -p "$dest/resources/yomitan"
 python3 -m zipfile -e yomitan.zip "$dest/resources/yomitan"
 rm yomitan.zip
+# Electron has no chrome.permissions: guard Yomitan's few calls to it
+python3 "$repo/windows/patch-yomitan.py" "$dest/resources/yomitan"
 
 for required in \
     "$dest/memento-overlay.exe" \

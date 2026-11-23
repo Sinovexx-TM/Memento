@@ -26,7 +26,8 @@ const fs = require('fs');
 /* Own profile folder next to Memento's config, so Yomitan's dictionaries and
  * settings survive updates and don't mix with any other Electron app. */
 const configRoot = path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'memento');
-app.setPath('userData', path.join(configRoot, 'yomitan-overlay'));
+app.setPath('userData', process.env.MEMENTO_OVERLAY_PROFILE ||
+    path.join(configRoot, 'yomitan-overlay'));
 
 if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -415,6 +416,10 @@ app.whenReady().then(async () => {
     createOverlay();
     connect();
     setInterval(pollCursor, 30);
+    /* For testing without Memento */
+    if (process.argv.includes('--open-settings')) {
+        setTimeout(openSettings, 1500);
+    }
 });
 
 /* Only Memento decides when this ends */
