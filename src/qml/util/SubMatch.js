@@ -37,7 +37,33 @@ function langOf(base) {
     return { lang: "", stem: base };
 }
 
-var EXTRA_RE = /(?:^|[^A-Za-z])(NCOP|NCED|OP|ED|SP|OVA|OAD|ONA|PV|CM|Menu|Preview|Trailer|Teaser|Special|Specials|Bonus|Extra|Extras)(?:\s*\d{0,3})(?=$|[^A-Za-z])/i;
+var EXTRA_WORDS = "NCOP|NCED|OP|ED|SP|OVA|OAD|ONA|PV|CM|Menu|Preview|Trailer|Teaser|Special|Specials|Bonus|Extra|Extras";
+
+/* Extras words in a name, lower case ("Special A - 05" -> ["special"]) */
+function extraWordsIn(base) {
+    var re = new RegExp("(?:^|[^A-Za-z])(" + EXTRA_WORDS + ")(?=$|[^A-Za-z])", "gi");
+    var found = [], m;
+    while ((m = re.exec(base)) !== null) {
+        if (found.indexOf(m[1].toLowerCase()) < 0) {
+            found.push(m[1].toLowerCase());
+        }
+        re.lastIndex = m.index + m[0].length;
+    }
+    return found;
+}
+
+/* True if the text has an extras word that isn't in `ignore` */
+function hasExtra(text, ignore) {
+    var re = new RegExp("(?:^|[^A-Za-z])(" + EXTRA_WORDS + ")(?:\\s*\\d{0,3})(?=$|[^A-Za-z])", "gi");
+    var m;
+    while ((m = re.exec(text)) !== null) {
+        if (!ignore || ignore.indexOf(m[1].toLowerCase()) < 0) {
+            return true;
+        }
+        re.lastIndex = m.index + Math.max(1, m[0].length - 1);
+    }
+    return false;
+}
 
 function cleanName(s) {
     s = s.replace(/\[[0-9A-Fa-f]{8}\]/g, " ");                          /* CRC */
@@ -62,14 +88,26 @@ function cleanName(s) {
  * Episode info from a file name (without extension).
  * kind: "episode" | "extra" | "none"; season: number or 0; ep: number
  */
-function parseEpisode(base) {
+function parseEpisode(base, ignore) {
     var m = base.match(/S(\d{1,2})[ ._-]?E(\d{1,4}(?:\.\d)?)(?!\d)/i);
     if (m) {
         return { kind: "episode", season: parseInt(m[1], 10), ep: parseFloat(m[2]) };
     }
     var clean = cleanName(base);
+    /* A clear episode number (" - 05", "[05]") wins over an extras word in
+     * the title ("Special A - 05", "Ed Edd n Eddy - 03"), unless the word
+     * sits right before the number ("Show OVA - 01", "Show - SP01") */
+    var clear = clean.match(/\s-\s*(\d{1,4}(?:\.\d)?)(?:v\d)?\b/) ||
+                clean.match(/\[\s*(\d{1,4}(?:\.\d)?)(?:v\d)?\s*\]/);
+    if (clear) {
+        var before = clean.substring(0, clear.index);
+        var tail = new RegExp("(?:^|[^A-Za-z])(" + EXTRA_WORDS + ")\\s*$", "i").exec(before);
+        if (!tail || (ignore && ignore.indexOf(tail[1].toLowerCase()) >= 0)) {
+            return { kind: "episode", season: 0, ep: parseFloat(clear[1]) };
+        }
+    }
     /* Extras can also sit in a tag ("[Menu01]"); the leading [Group] is skipped */
-    if (EXTRA_RE.test(clean) || EXTRA_RE.test(base.replace(/^\s*\[[^\]]*\]/, " "))) {
+    if (hasExtra(clean, ignore) || hasExtra(base.replace(/^\s*\[[^\]]*\]/, " "), ignore)) {
         return { kind: "extra", season: 0, ep: 0 };
     }
     var patterns = [
@@ -137,9 +175,9 @@ function matchGroup(videos, subs) {
             if (list.length > 0) { ++hits; }
             return list;
         });
-        var wholeSubs = subs.filter(function (s) { return isWhole(s.ep); }).length;
-        /* Numbers line up: every video that could have a sub found one */
-        if (hits > 0 && hits >= Math.min(videos.length, wholeSubs)) {
+        /* Some numbers line up: pair only those. The rest stay unmatched
+         * (a missing episode must not shift the others) */
+        if (hits > 0) {
             videos.forEach(function (v, i) { addPair(v, direct[i]); });
             return result;
         }
@@ -157,8 +195,9 @@ function matchGroup(videos, subs) {
         return result;
     }
 
-    /* Same count: pair in sorted order (S02E01-12 <-> 27-38) */
-    if (vw.length === sw.length) {
+    /* Same count, both unbroken runs: pair in sorted order
+     * (S02E01-12 <-> 27-38). With a gap on either side it's a guess. */
+    if (vw.length === sw.length && consecutive(vw) && consecutive(sw)) {
         vw.forEach(function (v, i) { result.pairs.push([v, sw[i]]); });
         return result;
     }
@@ -193,10 +232,19 @@ function matchGroup(videos, subs) {
 function matchFolder(videoNames, subs) {
     var videos = [];
     var videoByBase = {};
+    /* Extras words in every video name are part of the title */
+    var ignore = null;
+    videoNames.forEach(function (name) {
+        var words = extraWordsIn(cleanName(splitExt(name).base));
+        ignore = ignore === null ? words : ignore.filter(function (w) { return words.indexOf(w) >= 0; });
+    });
+    if (videoNames.length < 2) {
+        ignore = [];
+    }
     videoNames.forEach(function (name) {
         var base = splitExt(name).base;
         videoByBase[base.toLowerCase()] = name;
-        var e = parseEpisode(base);
+        var e = parseEpisode(base, ignore);
         if (e.kind === "episode") {
             videos.push({ name: name, base: base, season: e.season, ep: e.ep });
         }
@@ -217,7 +265,7 @@ function matchFolder(videoNames, subs) {
             usedNames[sub.name.toLowerCase()] = true;
             return;
         }
-        var e = parseEpisode(tag.stem);
+        var e = parseEpisode(tag.stem, ignore);
         if (e.kind !== "episode") {
             out.unmatched.push(sub);
             return;
@@ -227,12 +275,21 @@ function matchFolder(videoNames, subs) {
     });
 
     var byVideo = {};
+    /* Videos that already have a sub (of a language) sit out its matching */
+    function hasMatched(videoName, lang) {
+        return out.matched.some(function (m) {
+            return m.video === videoName && (lang === undefined || m.lang === lang);
+        });
+    }
     Object.keys(groups).forEach(function (lang) {
-        var r = matchGroup(videos, groups[lang]);
+        var r = matchGroup(videos.filter(function (v) { return !hasMatched(v.name, lang); }), groups[lang]);
         r.pairs.forEach(function (p) {
             (byVideo[p[0].name] = byVideo[p[0].name] || []).push(p[1]);
         });
         r.unclear.forEach(function (u) {
+            if (hasMatched(u.video.name)) {
+                return;
+            }
             out.unclear.push({ video: u.video.name, candidates: u.candidates.map(function (c) { return c.sub; }) });
         });
         var paired = {};

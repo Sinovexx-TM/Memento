@@ -94,6 +94,41 @@ const S = (name, lang = "", dir = "") => ({ name, dir, lang });
   eq("decimal", names(r), ["Sub 12.5.srt -> Show - 12.5.srt", "Sub 12.srt -> Show - 12.srt"]);
 }
 
+// Bug 1: missing episode must not shift pairs (04 must NOT get E03)
+{
+  const v = ["[Grp] Show - 01 [1080p].mkv", "[Grp] Show - 02 [1080p].mkv", "[Grp] Show - 04 [1080p].mkv"];
+  const s = [S("Show.E01.srt"), S("Show.E02.srt"), S("Show.E03.srt")];
+  const r = M.matchFolder(v, s);
+  eq("missing ep pairs", names(r), ["Show.E01.srt -> [Grp] Show - 01 [1080p].srt", "Show.E02.srt -> [Grp] Show - 02 [1080p].srt"]);
+  eq("missing ep E03 unmatched", r.unmatched.map(x => x.name), ["Show.E03.srt"]);
+}
+// Same count but a gap on one side: ask, don't pair by order
+{
+  const v = ["Show S02E01.mkv", "Show S02E02.mkv", "Show S02E04.mkv"];
+  const s = [S("Sub 27.srt"), S("Sub 28.srt"), S("Sub 29.srt")];
+  const r = M.matchFolder(v, s);
+  eq("gap no order pairing", r.renames.length, 0);
+  eq("gap unclear", r.unclear.length, 3);
+}
+// Bug 2: extras words in the title
+eq("special a", ep("[Grp] Special A - 05 [1080p]"), [0, 5]);
+eq("ed edd", ep("Ed Edd n Eddy - 03"), [0, 3]);
+eq("ova dash still extra", ep("Show OVA - 01"), "extra");
+eq("sp dash still extra", ep("[Moozzi2] Hirogaru Sky! Precure - SP01 (BD)"), "extra");
+{
+  const v = ["Ed Edd n Eddy 01.mkv", "Ed Edd n Eddy 02.mkv"];
+  const s = [S("Ed Edd n Eddy 01.ja.srt"), S("Ed Edd n Eddy E02.srt", "ja")];
+  const r = M.matchFolder(v, s);
+  eq("extras word in every name", names(r), ["Ed Edd n Eddy E02.srt -> Ed Edd n Eddy 02.srt"]);
+}
+// Bug 3: already-matched video not listed as unclear
+{
+  const v = ["X S02E01.mkv", "X S02E02.mkv"];
+  const s = [S("X S02E01.ja.srt"), ...Array.from({ length: 30 }, (_, i) => S(`X - ${i + 1}.ass`, "ja"))];
+  const r = M.matchFolder(v, s);
+  eq("matched not unclear", r.unclear.map(u => u.video), ["X S02E02.mkv"]);
+}
+
 console.log(fails ? `${fails} failed` : "all synthetic tests passed");
 
 // Real folders
