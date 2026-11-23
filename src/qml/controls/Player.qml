@@ -746,6 +746,14 @@ MpvPlayer {
         player: root
     }
 
+    PadNavigator {
+        id: padNavigator
+        player: root
+        library: libraryView
+        animeList: malView
+        mangaViews: [mangaView, mangaListView]
+    }
+
     /* Xbox-style controller: A play/pause, left/right seek, LB/RB previous/
      * next subtitle line, up/down volume, Start fullscreen, Back library.
      * In the library the D-pad moves, A opens, B goes back. The log prompt
@@ -755,12 +763,11 @@ MpvPlayer {
         function onButtonPressed(name) {
             if (togglLogger.handleGamepad(name))
                 return;
+            /* Library, Anime list and dialogs (manga is left out) */
+            if (padNavigator.handle(name))
+                return;
             if (Utils.modalDialogs > 0)
                 return;
-            if (libraryView.visible) {
-                libraryView.handleGamepad(name);
-                return;
-            }
             switch (name) {
             case "back":
                 libraryView.open();

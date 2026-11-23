@@ -191,4 +191,5 @@ target_link_libraries(
     gamepad
     PUBLIC Qt6::Core
     PRIVATE Qt6::Gui
+    PRIVATE Qt6::Quick
 )

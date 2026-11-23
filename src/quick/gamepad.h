@@ -19,6 +19,16 @@ class Gamepad : public QObject
 public:
     explicit Gamepad(QObject *parent = nullptr);
 
+    /**
+     * @brief Left-click the middle of a QML item, as the mouse would.
+     */
+    Q_INVOKABLE void click(QObject *item);
+
+    /**
+     * @brief Press and release a key in the focused window.
+     */
+    Q_INVOKABLE void key(int key);
+
 Q_SIGNALS:
     /**
      * @brief A button was pressed (or a D-pad direction is held and repeats).

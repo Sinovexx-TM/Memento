@@ -2,6 +2,10 @@
 
 #include <QDateTime>
 #include <QGuiApplication>
+#include <QKeyEvent>
+#include <QMouseEvent>
+#include <QQuickItem>
+#include <QQuickWindow>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -141,4 +145,35 @@ void Gamepad::poll()
         }
     }
     m_lastButtons = buttons;
+}
+
+void Gamepad::click(QObject *object)
+{
+    QQuickItem *item = qobject_cast<QQuickItem *>(object);
+    if (!item || !item->window())
+    {
+        return;
+    }
+    QQuickWindow *window = item->window();
+    const QPointF scene = item->mapToScene(QPointF(item->width() / 2, item->height() / 2));
+    const QPointF global = window->mapToGlobal(scene);
+    QMouseEvent press(QEvent::MouseButtonPress, scene, global,
+                      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(window, &press);
+    QMouseEvent release(QEvent::MouseButtonRelease, scene, global,
+                        Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(window, &release);
+}
+
+void Gamepad::key(int key)
+{
+    QWindow *window = QGuiApplication::focusWindow();
+    if (!window)
+    {
+        return;
+    }
+    QKeyEvent press(QEvent::KeyPress, key, Qt::NoModifier);
+    QCoreApplication::sendEvent(window, &press);
+    QKeyEvent release(QEvent::KeyRelease, key, Qt::NoModifier);
+    QCoreApplication::sendEvent(window, &release);
 }
