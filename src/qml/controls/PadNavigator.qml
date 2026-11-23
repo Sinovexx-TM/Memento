@@ -20,6 +20,10 @@ Item {
     property var current: null
 
     function pageScope() {
+        for (const view of root.mangaViews) {
+            if (view.visible)
+                return view;
+        }
         if (root.animeList.visible)
             return root.animeList;
         if (root.library.visible)
@@ -103,9 +107,16 @@ Item {
 
     /* true = handled (or swallowed); false = the player should act */
     function handle(name) {
-        for (const view of root.mangaViews) {
-            if (view.visible)
-                return true;
+        /* Manga reader: left / right turn pages, B goes back */
+        const reader = root.mangaViews[0].reader;
+        if (reader && reader.visible && Utils.modalDialogs === 0) {
+            if (name === "left")
+                Gamepad.key(Qt.Key_Left);
+            else if (name === "right")
+                Gamepad.key(Qt.Key_Right);
+            else if (name === "b")
+                Gamepad.key(Qt.Key_Escape);
+            return true;
         }
         const scope = root.scope();
         if (scope === null)
@@ -115,6 +126,8 @@ Item {
             root.current = null;
             if (scope === root.library)
                 root.library.handleGamepad("b");
+            else if (root.mangaViews.indexOf(scope) >= 0 && typeof scope.back === "function")
+                scope.back();
             else
                 Gamepad.key(Qt.Key_Escape);
             return true;

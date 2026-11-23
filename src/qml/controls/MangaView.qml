@@ -34,6 +34,9 @@ Rectangle {
         .slice(0, 8)
 
     visible: false
+
+    /* The reader, for the controller */
+    property alias reader: reader
     color: "#141414"
 
     function open(fromLibrary) {

@@ -10,6 +10,7 @@ set(
     images/arrow-drop-up.svg
     images/arrow-up.svg
     images/clear.svg
+    images/controller-layout.png
     images/close.svg
     images/delete.svg
     images/dictionary.svg

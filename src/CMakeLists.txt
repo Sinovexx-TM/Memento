@@ -78,6 +78,8 @@ qt_add_qml_module(
         qml/controls/SubtitleText.qml
         qml/controls/TogglLogger.qml
         qml/controls/PadNavigator.qml
+        qml/controls/ControllerDiagram.qml
+        qml/options/ControllerPage.qml
         qml/controls/SubMatcher.qml
         qml/util/SubMatch.js
         qml/util/Library.js

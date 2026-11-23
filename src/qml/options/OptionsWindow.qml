@@ -42,6 +42,11 @@ Window {
                     pageIndex: 3
                 }
                 ListElement {
+                    text: qsTr("Controller")
+                    icon: "gear"
+                    pageIndex: 9
+                }
+                ListElement {
                     text: qsTr("Dictionary")
                     icon: "dictionary"
                     pageIndex: 4
@@ -66,7 +71,7 @@ Window {
             Component.onCompleted: {
                 if (Features.ocr)
                 {
-                    model.insert(7, {
+                    model.insert(8, {
                         text: qsTr("OCR"),
                         icon: "eye",
                         pageIndex: 7,
@@ -113,6 +118,8 @@ Window {
             }
 
             SearchPage { }
+
+            ControllerPage { }
         }
     }
 }

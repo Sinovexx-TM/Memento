@@ -500,6 +500,11 @@ MenuBar {
         width: Math.max(contentWidth + leftPadding + rightPadding, root.minimumMenuWidth)
 
         Action {
+            text: qsTr("&Controls")
+            onTriggered: controllerDialog.open()
+        }
+
+        Action {
             text: qsTr("&Show Search")
             checkable: true
             checked: MementoSettings.windowSearch
@@ -691,6 +696,23 @@ MenuBar {
 
     OptionsWindow {
         id: optionsWindow
+    }
+
+    /* Tools > Controls: the controller layout over the video */
+    Dialog {
+        id: controllerDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(parent ? parent.width - 60 : 1200, 1300)
+        modal: true
+        title: qsTr("Controller")
+        standardButtons: Dialog.Close
+        onAboutToShow: Utils.modalDialogs += 1
+        onClosed: Utils.modalDialogs -= 1
+
+        ControllerDiagram {
+            width: controllerDialog.availableWidth
+        }
     }
 
     AboutWindow {

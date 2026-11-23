@@ -1,5 +1,7 @@
 #include "gamepad.h"
 
+#include <cmath>
+
 #include <QDateTime>
 #include <QGuiApplication>
 #include <QKeyEvent>
@@ -14,7 +16,7 @@
 namespace
 {
 constexpr int STICK_DEADZONE = 8000;      /* of 32767 */
-constexpr double CURSOR_MAX_SPEED = 22.0;  /* pixels per poll at full tilt */
+constexpr double CURSOR_MAX_SPEED = 50.0;  /* pixels per poll at full tilt */
 constexpr double WHEEL_MAX = 40.0;         /* wheel units per poll (120 = one notch) */
 constexpr int TRIGGER_DOWN = 120;          /* of 255 */
 constexpr int TRIGGER_UP = 60;
@@ -43,7 +45,7 @@ double stickValue(int raw)
         return 0;
     }
     const double v = double(a - STICK_DEADZONE) / double(32767 - STICK_DEADZONE);
-    const double curved = v * v;
+    const double curved = std::pow(v, 1.5);
     return raw < 0 ? -curved : curved;
 }
 
@@ -84,7 +86,7 @@ constexpr Button BUTTONS[] = {
     {0x8000, "y"},
 };
 
-constexpr quint16 REPEATING = 0x000F; /* D-pad */
+constexpr quint16 REPEATING = 0xC00F; /* D-pad, X and Y (sub delay) */
 }
 
 Gamepad::Gamepad(QObject *parent) : QObject(parent)

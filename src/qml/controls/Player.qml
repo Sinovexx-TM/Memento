@@ -803,6 +803,11 @@ MpvPlayer {
             case "start":
                 root.controller.setFullscreen(!root.state.fullscreen);
                 break;
+            case "x":
+            case "y":
+                root.controller.command(["add", "sub-delay", name === "x" ? "-0.1" : "0.1"]);
+                root.controller.command(["show-text", "Sub delay: ${sub-delay}"]);
+                break;
             }
         }
     }
