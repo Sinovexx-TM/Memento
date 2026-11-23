@@ -34,9 +34,12 @@ Item {
             }
             root.term.addableExpression = result.expression;
             root.term.addableReading = result.reading;
-            if (!root.term.addableExpression && root.term.addableReading)
+            /* Fork: a word whose kanji card already exists counts as added
+             * (upstream switched to a kana-only card here) */
+            if (!root.term.addableExpression)
             {
-                root.term.readingAsExpression = true;
+                root.term.addableReading = false;
+                root.term.readingAsExpression = false;
             }
 
             let id = -1;
@@ -122,15 +125,13 @@ Item {
                 return;
             }
 
-            if (root.term.readingAsExpression)
-            {
-                root.term.addableReading = false;
-            }
-            else
-            {
-                root.term.addableExpression = false;
-            }
-            root.term.readingAsExpression = !root.term.readingAsExpression;
+            /* Fork: no automatic switch to a kana-only card after adding.
+             * The term counts as added; Anki is asked again next time the
+             * word is shown (so a deleted card can be added again). */
+            root.term.addableExpression = false;
+            root.term.addableReading = false;
+            root.term.readingAsExpression = false;
+            root.term.ankiChecked = false;
 
             root.term.ankiAdding = false;
         });
@@ -171,6 +172,12 @@ Item {
     }
 
     onTermChanged: root.checkTermAddable()
+    onVisibleChanged: {
+        if (visible && root.term && !root.term.ankiAdding) {
+            root.term.ankiChecked = false;
+            root.checkTermAddable();
+        }
+    }
 
     CardBuilderDialog {
         id: cardBuilder
@@ -311,6 +318,36 @@ Item {
                         }
                     }
 
+                    /* Fork: sentence card (Yomitan's diamond): the same note
+                     * with one extra field, by default IsSentenceCard = "x"
+                     * (fork options "sentence-card-field" / "-value") */
+                    ToolButton {
+                        id: addSentenceButton
+                        focusPolicy: Qt.NoFocus
+                        visible: addAnkiButton.visible
+                        enabled: addAnkiButton.enabled
+                        icon.source: Utils.toImageProvider("diamond", Qt.color("#5cb85c"))
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 500
+                        ToolTip.text: qsTr("Add as sentence card")
+
+                        onClicked: {
+                            const audioSource = audioFiles.files.length > 0 ?
+                                audioFiles.files[0] : null;
+                            if (audioSource?.exists)
+                            {
+                                root.term.audioSourceName = audioSource.name;
+                                root.term.audioUrl = audioSource.url;
+                                root.term.audioSkipHash = audioSource.skipHash;
+                            }
+                            const fields = {};
+                            fields[String(WatchHistory.option("sentence-card-field", "IsSentenceCard"))] =
+                                String(WatchHistory.option("sentence-card-value", "x"));
+                            AnkiClient.setNextNoteFields(fields);
+                            root.addTerm();
+                        }
+                    }
+
                     ToolButton {
                         id: addAnkiButton
                         focusPolicy: Qt.NoFocus
@@ -333,6 +370,7 @@ Item {
                                 root.term.audioUrl = audioSource.url;
                                 root.term.audioSkipHash = audioSource.skipHash;
                             }
+                            AnkiClient.setNextNoteFields({});
                             root.addTerm();
                         }
 

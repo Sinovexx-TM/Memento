@@ -13,6 +13,7 @@ set(
     images/controller-layout.png
     images/close.svg
     images/delete.svg
+    images/diamond.svg
     images/dictionary.svg
     images/eye.svg
     images/fast-forward.svg

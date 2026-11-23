@@ -377,6 +377,8 @@ QCoro::Task<QVariantMap> AnkiClient::addNoteAsync(const Term *term)
     std::unique_ptr<Term> termCopy{term->clone(this)};
     populate(termCopy.get());
     applyCardBuilderOverride(termCopy.get(), profileCopy.get());
+    const QVariantMap extraFields = m_nextNoteFields;
+    m_nextNoteFields.clear();
     Anki::Note::Context ctx = co_await QtConcurrent::run(
         [this, &profile = *profileCopy, &term = *termCopy]
         () -> Anki::Note::Context
@@ -384,6 +386,15 @@ QCoro::Task<QVariantMap> AnkiClient::addNoteAsync(const Term *term)
             return Anki::Note::build(*m_context, profile, term, true);
         }
     );
+    if (!extraFields.isEmpty())
+    {
+        QJsonObject fields = ctx.ankiObject.value("fields").toObject();
+        for (auto it = extraFields.constBegin(); it != extraFields.constEnd(); ++it)
+        {
+            fields[it.key()] = it.value().toString();
+        }
+        ctx.ankiObject["fields"] = fields;
+    }
     co_return co_await addNoteHelper(profileCopy.get(), std::move(ctx));
 }
 
@@ -1325,9 +1336,15 @@ bool AnkiClient::mangaActive() const
     return Anki::Note::imageSourceActive();
 }
 
+void AnkiClient::setNextNoteFields(const QVariantMap &fields)
+{
+    m_nextNoteFields = fields;
+}
+
 void AnkiClient::clearCardBuilderOverride()
 {
     m_cardOverride = {};
+    m_nextNoteFields.clear();
     for (const QString &path : std::as_const(m_cardClips))
     {
         QFile::remove(path);

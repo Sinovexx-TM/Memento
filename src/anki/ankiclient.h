@@ -415,6 +415,13 @@ public:
     Q_INVOKABLE void clearCardBuilderOverride();
 
     /**
+     * @brief Fields to set on the next term note only (fork: the diamond
+     *        button's sentence card sets e.g. IsSentenceCard = "x").
+     *        An empty map clears them. Cleared after use and on cancel.
+     */
+    Q_INVOKABLE void setNextNoteFields(const QVariantMap &fields);
+
+    /**
      * @brief Manga reader: cards use this page image instead of a video
      * screenshot, get no sentence audio and get these extra tags. An empty
      * path turns it off.
@@ -601,4 +608,7 @@ private:
 
     /* Temporary clips made for the card builder, removed when it closes */
     QStringList m_cardClips;
+
+    /* Fields set on the next term note only */
+    QVariantMap m_nextNoteFields;
 };
