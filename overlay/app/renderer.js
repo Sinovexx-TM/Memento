@@ -122,8 +122,20 @@ function updateState() {
 }
 
 /* Yomitan's popup is an iframe it adds to this page */
+/* Yomitan's popup frames: in the page, or inside the (open) shadow root of
+ * a container element when Yomitan's "shadow DOM" option is on */
+function popupFrames() {
+    const frames = [...document.querySelectorAll('iframe.yomitan-popup')];
+    for (const host of document.querySelectorAll('body > *, html > *')) {
+        if (host.shadowRoot) {
+            frames.push(...host.shadowRoot.querySelectorAll('iframe.yomitan-popup'));
+        }
+    }
+    return frames;
+}
+
 function popupVisible() {
-    for (const frame of document.querySelectorAll('iframe.yomitan-popup')) {
+    for (const frame of popupFrames()) {
         const style = getComputedStyle(frame);
         if (style.visibility === 'hidden' || style.display === 'none') {
             continue;

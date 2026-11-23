@@ -971,8 +971,10 @@ MpvPlayer {
         subtitleItem: subtitleText
         blocked: subtitleHover.hovered ||
                  subtitleText.hoverIndex !== -1 ||
+                 subtitleText.selectionStart !== -1 ||
                  definitionPopup.visible ||
                  YomitanOverlay.hover ||
+                 YomitanOverlay.popupHover ||
                  YomitanOverlay.popupOpen
     }
 

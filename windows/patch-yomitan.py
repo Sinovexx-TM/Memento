@@ -41,4 +41,17 @@ for head, guard in guards.items():
     text = text.replace(head, head + '\n' + guard, 1)
 
 path.write_text(text, encoding='utf-8')
-print('Yomitan patched for Electron (permissions)')
+
+# The popup sits in a closed shadow root, which the overlay page can't look
+# into to tell whether the popup is open. Inside Electron (no
+# chrome.permissions) make it an open one; browsers keep 'closed'.
+path = root / 'js' / 'app' / 'popup.js'
+text = path.read_text(encoding='utf-8')
+old = "container.attachShadow({mode: 'closed', delegatesFocus: true});"
+new = "container.attachShadow({mode: (typeof chrome.permissions === 'undefined' ? 'open' : 'closed'), delegatesFocus: true}); // Memento overlay: Electron"
+if new not in text:
+    if old not in text:
+        sys.exit('patch-yomitan: popup shadow root not found, Yomitan changed')
+    text = text.replace(old, new, 1)
+path.write_text(text, encoding='utf-8')
+print('Yomitan patched for Electron (permissions, popup shadow root)')
