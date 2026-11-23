@@ -57,9 +57,38 @@ function send(obj) {
     }
 }
 
+/* %LOCALAPPDATA%\memento\yomitan-overlay\overlay.log, restarted each run */
+const logPath = path.join(app.getPath('userData'), 'overlay.log');
+try {
+    fs.mkdirSync(path.dirname(logPath), { recursive: true });
+    fs.writeFileSync(logPath, '');
+} catch (e) { /* no log then */ }
+
+function writeLog(message) {
+    try {
+        fs.appendFileSync(logPath, `${new Date().toISOString()} ${message}\n`);
+    } catch (e) { /* ignore */ }
+}
+
 function log(message) {
+    writeLog(message);
     send({ type: 'log', message: String(message) });
 }
+
+/* Every page and worker's console (overlay page, Yomitan's background,
+ * its settings page and popups) goes to the log */
+app.on('web-contents-created', (_event, wc) => {
+    wc.on('console-message', (details) => {
+        const d = details && details.message !== undefined ? details : {};
+        const level = d.level !== undefined ? d.level : '';
+        writeLog(`[console ${level}] ${d.message || ''} (${d.sourceId || ''}:${d.lineNumber || ''}) ${wc.getURL()}`);
+    });
+    wc.on('did-fail-load', (_e, code, desc, url) => writeLog(`[load failed] ${code} ${desc} ${url}`));
+    wc.on('render-process-gone', (_e, details) => writeLog(`[renderer gone] ${details.reason} ${wc.getURL()}`));
+    wc.on('preload-error', (_e, preloadPath, error) => writeLog(`[preload error] ${preloadPath} ${error}`));
+});
+
+process.on('uncaughtException', e => writeLog(`[main error] ${e && e.stack || e}`));
 
 function yomitanDir() {
     const packaged = path.join(process.resourcesPath || '', 'yomitan');
@@ -78,6 +107,7 @@ async function loadYomitan() {
     const api = session.defaultSession.extensions || session.defaultSession;
     try {
         const ext = await api.loadExtension(dir, { allowFileAccess: true });
+        writeLog(`Yomitan ${ext.version} loaded from ${dir}, id ${ext.id}`);
         return ext;
     } catch (e) {
         log('Could not load Yomitan: ' + e.message);
@@ -196,6 +226,20 @@ function openSettings() {
     settingsWindow.removeMenu();
     settingsWindow.loadURL(`chrome-extension://${extension.id}/settings.html`);
     settingsWindow.on('closed', () => { settingsWindow = null; });
+    /* Electron sometimes leaves this window blank until it is resized
+     * (GSM's overlay does the same nudge): force a repaint */
+    const repaint = () => {
+        if (!settingsWindow || settingsWindow.isDestroyed()) {
+            return;
+        }
+        const [w, h] = settingsWindow.getSize();
+        settingsWindow.setSize(w + 1, h);
+        settingsWindow.setSize(w, h);
+        settingsWindow.webContents.invalidate();
+    };
+    settingsWindow.webContents.on('did-finish-load', () => setTimeout(repaint, 300));
+    setTimeout(repaint, 800);
+    setTimeout(repaint, 2000);
 }
 
 /* Notes Yomitan adds go to AnkiConnect over HTTP. Watching the request lets
@@ -254,6 +298,7 @@ function watchAnki() {
             return;
         }
         const note = pending.notes[pending.notes.length - 1];
+        writeLog('Yomitan added a note');
         send({
             type: 'noteAdded',
             time: pending.time,
@@ -358,6 +403,13 @@ ipcMain.on('popup', (_event, open) => {
 });
 
 app.whenReady().then(async () => {
+    writeLog(`Overlay start, Electron ${process.versions.electron}, port ${port}`);
+    /* Yomitan's background (service worker) console */
+    try {
+        session.defaultSession.serviceWorkers.on('console-message', (_e, d) => {
+            writeLog(`[worker] ${d.message} (${d.sourceUrl || ''}:${d.lineNumber || ''})`);
+        });
+    } catch (e) { /* older API */ }
     watchAnki();
     extension = await loadYomitan();
     createOverlay();
