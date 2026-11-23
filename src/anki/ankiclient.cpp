@@ -1431,6 +1431,7 @@ QCoro::Task<QVariantMap> AnkiClient::fillNewNoteAsync(double sinceMs)
     std::unique_ptr<AnkiProfile> profileCopy{profile()->clone(this)};
     std::unique_ptr<Expression> exp{new Expression(this)};
     populate(exp.get());
+    const QString originalLine = exp->subtitle();
     const CardBuilderOverride o = m_cardOverride;
     m_cardOverride = {};
     if (o.active)
@@ -1523,6 +1524,42 @@ QCoro::Task<QVariantMap> AnkiClient::fillNewNoteAsync(double sinceMs)
         if (emptyFields.contains(it.key()) && !fieldIsEmpty(value))
         {
             fields[it.key()] = value;
+            filled << it.key();
+        }
+    }
+    /* Card builder with previous/next lines: Yomitan already wrote the
+     * single line into the sentence field(s), so they aren't empty. Widen
+     * any field that holds (part of) the original line to the builder's
+     * text, keeping the field's own markup (e.g. the word in bold). */
+    static const QRegularExpression TAGS("<[^>]*>");
+    const QString lineText = originalLine.trimmed();
+    if (o.active && !o.text.isEmpty() && o.text != lineText)
+    {
+        for (auto it = noteFields.constBegin(); it != noteFields.constEnd(); ++it)
+        {
+            if (fields.contains(it.key()))
+            {
+                continue;
+            }
+            const QString html = it.value().toObject()["value"].toString();
+            QString plain = html;
+            plain.remove(TAGS);
+            plain.replace("&nbsp;", " ");
+            plain = plain.trimmed();
+            /* Long enough to be the sentence, not the headword */
+            if (plain.size() < 4 || plain.size() * 2 < lineText.size() ||
+                !lineText.contains(plain))
+            {
+                continue;
+            }
+            const qsizetype at = o.text.indexOf(plain);
+            if (at < 0)
+            {
+                continue;
+            }
+            const QString prefix = o.text.left(at).toHtmlEscaped().replace('\n', "<br>");
+            const QString suffix = o.text.mid(at + plain.size()).toHtmlEscaped().replace('\n', "<br>");
+            fields[it.key()] = prefix + html.trimmed() + suffix;
             filled << it.key();
         }
     }
