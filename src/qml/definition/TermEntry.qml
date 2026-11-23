@@ -318,36 +318,6 @@ Item {
                         }
                     }
 
-                    /* Fork: sentence card (Yomitan's diamond): the same note
-                     * with one extra field, by default IsSentenceCard = "x"
-                     * (fork options "sentence-card-field" / "-value") */
-                    ToolButton {
-                        id: addSentenceButton
-                        focusPolicy: Qt.NoFocus
-                        visible: addAnkiButton.visible
-                        enabled: addAnkiButton.enabled
-                        icon.source: Utils.toImageProvider("diamond", Qt.color("#5cb85c"))
-                        ToolTip.visible: hovered
-                        ToolTip.delay: 500
-                        ToolTip.text: qsTr("Add as sentence card")
-
-                        onClicked: {
-                            const audioSource = audioFiles.files.length > 0 ?
-                                audioFiles.files[0] : null;
-                            if (audioSource?.exists)
-                            {
-                                root.term.audioSourceName = audioSource.name;
-                                root.term.audioUrl = audioSource.url;
-                                root.term.audioSkipHash = audioSource.skipHash;
-                            }
-                            const fields = {};
-                            fields[String(WatchHistory.option("sentence-card-field", "IsSentenceCard"))] =
-                                String(WatchHistory.option("sentence-card-value", "x"));
-                            AnkiClient.setNextNoteFields(fields);
-                            root.addTerm();
-                        }
-                    }
-
                     ToolButton {
                         id: addAnkiButton
                         focusPolicy: Qt.NoFocus
@@ -393,6 +363,33 @@ Item {
                                 onObjectAdded: (index, object) => addAnkiMenu.insertItem(index, object)
                                 onObjectRemoved: (index, object) => addAnkiMenu.removeItem(object)
                             }
+                        }
+                    }
+
+                    /* Fork: sentence card (Yomitan's diamond): the same note
+                     * with one extra field, by default IsSentenceCard = "x"
+                     * (fork options "sentence-card-field" / "-value") */
+                    ToolButton {
+                        id: addSentenceButton
+                        focusPolicy: Qt.NoFocus
+                        visible: addAnkiButton.visible
+                        enabled: addAnkiButton.enabled
+                        icon.source: Utils.toImageProvider("diamond", Qt.color("#5cb85c"))
+
+                        onClicked: {
+                            const audioSource = audioFiles.files.length > 0 ?
+                                audioFiles.files[0] : null;
+                            if (audioSource?.exists)
+                            {
+                                root.term.audioSourceName = audioSource.name;
+                                root.term.audioUrl = audioSource.url;
+                                root.term.audioSkipHash = audioSource.skipHash;
+                            }
+                            const fields = {};
+                            fields[String(WatchHistory.option("sentence-card-field", "IsSentenceCard"))] =
+                                String(WatchHistory.option("sentence-card-value", "x"));
+                            AnkiClient.setNextNoteFields(fields);
+                            root.addTerm();
                         }
                     }
 
