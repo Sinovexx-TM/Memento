@@ -51,7 +51,7 @@ Item {
         if (!root.done && root.pos < Library.STARTED_SECONDS) {
             return;
         }
-        WatchHistory.record(Library.key(root.path), root.pos, root.duration, root.done);
+        WatchHistory.record(Library.key(root.path), root.done ? 0 : root.pos, root.duration, root.done);
         root.lastSave = Date.now();
     }
 

@@ -225,6 +225,10 @@ function buildSeries(folder, files, history, names, media) {
         }
         var dur = h.dur || 0;
         var pos = h.pos || 0;
+        /* Watched before and stopped partway through again. A finished
+         * playback stores pos 0 (older entries keep the end position, so
+         * the last 15 % doesn't count). */
+        var rewatch = !!h.done && dur > 0 && pos >= STARTED_SECONDS && pos < dur * 0.85;
         sectionsByDir[sectionKey].episodes.push({
             path: f.path,
             key: k,
@@ -240,7 +244,8 @@ function buildSeries(folder, files, history, names, media) {
             dur: dur,
             date: h.date || 0,
             watchedDate: h.watchedDate || 0,
-            progress: !h.done && dur > 0 && pos >= STARTED_SECONDS ? Math.min(1, pos / dur) : 0
+            rewatch: rewatch,
+            progress: (!h.done || rewatch) && dur > 0 && pos >= STARTED_SECONDS ? Math.min(1, pos / dur) : 0
         });
     }
 
@@ -348,7 +353,9 @@ function nextEpisode(main) {
         if (e.done) {
             lastDone = i;
             lastDoneDate = Math.max(lastDoneDate, e.watchedDate || e.date);
-        } else if (e.progress > 0 && (resume === null || e.date > resume.date)) {
+        }
+        /* Unfinished, or a rewatch stopped partway */
+        if (e.progress > 0 && (resume === null || e.date > resume.date)) {
             resume = e;
         }
     }

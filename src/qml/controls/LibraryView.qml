@@ -149,7 +149,7 @@ Rectangle {
         root.playlistKeys = keys;
         root.setAutoload(false);
 
-        const resume = !fromStart && !episode.done && episode.progress > 0 &&
+        const resume = !fromStart && (!episode.done || episode.rewatch) && episode.progress > 0 &&
             (episode.dur <= 0 || episode.pos < episode.dur - 10);
         const options = resume ? [`start=${Math.max(0, Math.floor(episode.pos - 3))}`] : [];
         root.player.controller.loadFile(episode.path, false, options);
@@ -187,7 +187,8 @@ Rectangle {
             return "";
         }
         if (series.resume) {
-            return qsTr("%1 · resume at %2").arg(e.short).arg(Library.formatTime(e.pos));
+            return (e.rewatch ? qsTr("%1 · rewatching, resume at %2") : qsTr("%1 · resume at %2"))
+                .arg(e.short).arg(Library.formatTime(e.pos));
         }
         return qsTr("%1 · up next").arg(e.short);
     }
@@ -596,6 +597,8 @@ Rectangle {
                             Bar {
                                 width: parent.width
                                 value: card.modelData.watched / Math.max(1, card.modelData.total)
+                                /* Green while rewatching */
+                                fill: card.modelData.next && card.modelData.next.rewatch ? "#46d369" : "#e5383b"
                             }
 
                             Text {
@@ -1038,11 +1041,14 @@ Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: 110
                                     value: episodeRow.episode.progress
+                                    fill: episodeRow.episode.rewatch ? "#46d369" : "#e5383b"
                                 }
 
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: episodeRow.episode.done ?
+                                    text: episodeRow.episode.rewatch ?
+                                              qsTr("Rewatching · %1 left").arg(Library.formatTime(episodeRow.episode.dur - episodeRow.episode.pos)) :
+                                          episodeRow.episode.done ?
                                               qsTr("Watched %1").arg(Library.formatDate(episodeRow.episode.watchedDate)) :
                                           episodeRow.episode.progress > 0 ?
                                               qsTr("%1 left").arg(Library.formatTime(episodeRow.episode.dur - episodeRow.episode.pos)) : ""
