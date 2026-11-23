@@ -14,7 +14,14 @@ import pathlib
 import sys
 
 root = pathlib.Path(sys.argv[1])
-manifest = json.loads((root / 'manifest.json').read_text(encoding='utf-8'))
+manifest = json.loads((root / 'manifest.json').read_text(encoding='utf-8-sig'))
+
+# A fixed public key gives Yomitan the same extension ID (ijackakicchpihljanchkfbindleipce)
+# wherever Memento is installed; the ID decides where Yomitan's dictionaries
+# and settings are stored, so without it every install folder started empty.
+# Only the public half exists; nothing is signed with it.
+manifest['key'] = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArUYottgvT8e3viTy5h1yOtmmgTG39HeCHgAdRzbP/+2jVkcxQGwJpUKfdQx4c8sLnWVa3gwKmM34hleQzVYsSN+pYtn+Er8b5eRgOVwlzTOdqAoInz4jMNIItw/h1PEO5YwQljh5FYh+ghrKOuM3DN+7cw85QuImpTbPWWlNuXPKY34OATfox+yAqk1ZJIYrSLvqX6qU+yrn3W6rZsVJHS21sqajywjhPaEtB4N+aEjKLu/KT7pdDldsxGH0+F9u8oK584T/vqO/sQrh7Y91YuCjGuSsY0ALLa6W5V57CZLTtQyFPNEtlIES/04X8kDR4u6veMh5HxMjeOprcgUIuwIDAQAB'
+(root / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=4), encoding='utf-8')
 granted = {
     'origins': manifest.get('host_permissions', []) + ['file:///*'],
     'permissions': manifest.get('permissions', []) + manifest.get('optional_permissions', []),

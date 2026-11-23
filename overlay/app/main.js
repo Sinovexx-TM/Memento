@@ -99,6 +99,48 @@ function yomitanDir() {
     return path.join(__dirname, '..', 'yomitan');
 }
 
+/* Yomitan's ID is fixed (manifest key, see windows/patch-yomitan.py). Before
+ * that it came from the install folder, so each folder had its own data.
+ * Settings (chrome.storage) can be carried over by copying their folder: do
+ * that once, from the most used old ID. Dictionaries can't (Chromium records
+ * the ID inside the database), so they are imported once more. */
+const YOMITAN_ID = 'ijackakicchpihljanchkfbindleipce';
+
+function folderSize(dir) {
+    let total = 0;
+    try {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            const full = path.join(dir, entry.name);
+            total += entry.isDirectory() ? folderSize(full) : fs.statSync(full).size;
+        }
+    } catch (e) { /* missing */ }
+    return total;
+}
+
+function adoptOldYomitanSettings() {
+    const profile = app.getPath('userData');
+    const idb = path.join(profile, 'IndexedDB');
+    const settings = path.join(profile, 'Local Extension Settings');
+    try {
+        if (fs.existsSync(path.join(settings, YOMITAN_ID)) || !fs.existsSync(idb)) {
+            return;
+        }
+        const old = fs.readdirSync(idb)
+            .map(name => /^chrome-extension_([a-p]{32})_0\.indexeddb\.leveldb$/.exec(name))
+            .filter(m => m && m[1] !== YOMITAN_ID && fs.existsSync(path.join(settings, m[1])))
+            .map(m => ({ id: m[1], dir: path.join(idb, m[0]) }))
+            .filter(o => folderSize(o.dir) > 1024 * 1024)
+            .sort((a, b) => fs.statSync(b.dir).mtimeMs - fs.statSync(a.dir).mtimeMs)[0];
+        if (!old) {
+            return;
+        }
+        fs.cpSync(path.join(settings, old.id), path.join(settings, YOMITAN_ID), { recursive: true });
+        writeLog(`Copied Yomitan's settings from ${old.id}`);
+    } catch (e) {
+        writeLog('Could not copy the old Yomitan settings: ' + e.message);
+    }
+}
+
 async function loadYomitan() {
     const dir = yomitanDir();
     if (!fs.existsSync(path.join(dir, 'manifest.json'))) {
@@ -427,7 +469,11 @@ app.whenReady().then(async () => {
     } catch (e) {
         writeLog('Could not clear the script cache: ' + e.message);
     }
+    adoptOldYomitanSettings();
     extension = await loadYomitan();
+    if (extension && extension.id !== YOMITAN_ID) {
+        writeLog(`Yomitan ID is ${extension.id}, not the fixed one: its data depends on the install folder`);
+    }
     createOverlay();
     connect();
     setInterval(pollCursor, 30);
