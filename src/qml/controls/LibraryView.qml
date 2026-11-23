@@ -596,7 +596,9 @@ Rectangle {
 
                             Bar {
                                 width: parent.width
-                                value: card.modelData.watched / Math.max(1, card.modelData.total)
+                                /* The episode to resume; the series count is in the text below */
+                                value: card.modelData.next && card.modelData.next.progress > 0 ?
+                                           card.modelData.next.progress : 0
                                 /* Green while rewatching */
                                 fill: card.modelData.next && card.modelData.next.rewatch ? "#46d369" : "#e5383b"
                             }
