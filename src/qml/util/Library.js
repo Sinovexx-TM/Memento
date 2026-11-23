@@ -29,6 +29,18 @@ function seriesTitle(folderName) {
     return s.length > 0 ? s : String(folderName);
 }
 
+/* The name to search AniList with: a trailing season tag confuses its search
+ * ("Oshi no Ko S01" finds nothing). Season 1 -> the bare title, season N ->
+ * "Title N" (how AniList names sequels: "Mato Seihei no Slave 2"). */
+function searchName(title) {
+    var m = String(title).match(/^(.*\S)\s+(?:S|Season\s*)0*(\d{1,2})$/i);
+    if (!m) {
+        return title;
+    }
+    var n = parseInt(m[2], 10);
+    return n <= 1 ? m[1] : m[1] + " " + n;
+}
+
 /* "S1" -> "Season 1"; "Season 2" stays; others as they are */
 function sectionTitle(dir) {
     var m = dir.match(/^(?:S|Season\s*)(\d{1,2})$/i);
@@ -311,8 +323,11 @@ function buildSeries(folder, files, history, names, media) {
         path: folder.path,
         folderName: folder.name,
         title: names[folderKey] || (folder.loose ? folder.name : seriesTitle(folder.name)),
-        guess: folder.loose ? folder.name : seriesTitle(folder.name),
-        media: media[folderKey] || null,
+        guess: folder.loose ? folder.name : searchName(seriesTitle(folder.name)),
+        /* "Nothing found" is retried when the search name has changed */
+        media: media[folderKey] && !(media[folderKey].none &&
+               media[folderKey].guess !== (folder.loose ? folder.name : searchName(seriesTitle(folder.name)))) ?
+               media[folderKey] : null,
         poster: media[folderKey] && media[folderKey].poster ? media[folderKey].poster : "",
         native: media[folderKey] && media[folderKey].native ? media[folderKey].native : "",
         loose: !!folder.loose,
