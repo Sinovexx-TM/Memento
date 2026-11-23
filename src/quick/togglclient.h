@@ -91,7 +91,8 @@ public:
      * @param show Show name for {show}.
      * @param episode Episode number or label for {episode}.
      */
-    Q_INVOKABLE void logEntry(int durationSeconds, const QString &show, const QString &episode);
+    Q_INVOKABLE void logEntry(int durationSeconds, const QString &show, const QString &episode,
+                              double endMs = 0);
 
     /**
      * @brief Queue an entry with its own description and project (manga

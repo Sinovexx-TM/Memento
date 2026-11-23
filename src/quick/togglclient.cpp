@@ -322,14 +322,20 @@ void TogglClient::savePending(const QJsonArray &entries)
     emit pendingChanged();
 }
 
-void TogglClient::logEntry(int durationSeconds, const QString &show, const QString &episode)
+void TogglClient::logEntry(int durationSeconds, const QString &show, const QString &episode,
+                           double endMs)
 {
     if (durationSeconds <= 0)
     {
         return;
     }
 
-    const QDateTime start = QDateTime::currentDateTimeUtc().addSecs(-durationSeconds);
+    /* endMs: when the episode ended (an episode logged later from the
+     * waiting list); 0 = now */
+    const QDateTime end = endMs > 0 ?
+        QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(endMs), QTimeZone::UTC) :
+        QDateTime::currentDateTimeUtc();
+    const QDateTime start = end.addSecs(-durationSeconds);
     QJsonObject entry{
         {"start", start.toString(Qt::ISODate)},
         {"duration", durationSeconds},

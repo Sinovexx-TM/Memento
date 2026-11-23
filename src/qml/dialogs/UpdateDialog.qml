@@ -22,8 +22,11 @@ Dialog {
      * otherwise.
      */
     function check(silentFailure) {
-        const MEMENTO_GITHUB_API_URL = "https://api.github.com/repos/ripose-jp/memento/releases/latest";
-        const MEMENTO_GITHUB_URL = "https://github.com/ripose-jp/Memento/releases/latest";
+        /* Fork: compare against this fork's releases, not upstream's.
+         * Bump FORK_TAG with every fork release. */
+        const MEMENTO_GITHUB_API_URL = "https://api.github.com/repos/Sinovexx-TM/Memento/releases/latest";
+        const FORK_TAG = "v2.0.2-fork.1";
+        const MEMENTO_GITHUB_URL = "https://github.com/Sinovexx-TM/Memento/releases/latest";
         const FAILURE_TITLE = qsTr("Update Check Failed");
         const FAILURE_MESSAGE = qsTr(
             "<p>The GitHub API did not return a valid reply.</p>" +
@@ -60,7 +63,7 @@ Dialog {
                 return;
             }
 
-            if (response.tag_name === `v${Features.version}`)
+            if (response.tag_name === FORK_TAG)
             {
                 root.title = qsTr("Update to Date");
                 messageLabel.text = qsTr("<p>You're on the latest version.</p>");

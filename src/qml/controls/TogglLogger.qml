@@ -18,6 +18,46 @@ Item {
     /* Called after the prompt closes when it was opened by quitting */
     property bool quitAfterPrompt: false
 
+    /* Episodes whose prompt was shown but never answered (Log or Skip):
+     * saved when the prompt opens, removed when it is answered, so one left
+     * open (asleep, next episode started, Memento closed) is kept. */
+    property int waitingCount: root.waitingList().length
+
+    function waitingList() {
+        try {
+            const list = JSON.parse(String(WatchHistory.option("toggl-waiting", "[]")));
+            return Array.isArray(list) ? list : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveWaiting(list) {
+        WatchHistory.setOption("toggl-waiting", JSON.stringify(list));
+        root.waitingCount = list.length;
+    }
+
+    function addWaiting(entry) {
+        const list = root.waitingList().filter(e => e.id !== entry.id);
+        list.push(entry);
+        root.saveWaiting(list);
+    }
+
+    function removeWaiting(id) {
+        if (!id)
+            return;
+        root.saveWaiting(root.waitingList().filter(e => e.id !== id));
+    }
+
+    /* Open the prompt for the oldest waiting episode */
+    function openWaiting() {
+        const list = root.waitingList();
+        if (list.length === 0 || prompt.opened)
+            return;
+        prompt.fromWaiting = true;
+        prompt.openFor(list[0].label, list[0].seconds, list[0]);
+    }
+
     /* Per-viewing state */
     property string path: ""
     property bool asked: false
@@ -194,8 +234,8 @@ Item {
     }
 
     /* Show and episode for the Toggl description: "Show", "9" (or "SP1") */
-    function labelParts() {
-        const info = Utils.parseMediaInfo(root.path, root.viewTitle);
+    function labelParts(path, title) {
+        const info = Utils.parseMediaInfo(path ?? root.path, title ?? root.viewTitle);
         const show = info.title && info.title.length > 0 ? info.title : "";
         const episode = (info.episode ?? "").trim();
         const number = episode.match(/^(?:episode\s*)?(\d+(?:\.\d+)?)$/i);
@@ -223,6 +263,7 @@ Item {
             return false;
         }
         root.asked = true;
+        prompt.fromWaiting = false;
         prompt.openFor(root.label(), seconds);
         return true;
     }
@@ -354,6 +395,14 @@ Item {
         property bool editing: false
         property bool pendingReset: false
 
+        /* The episode shown (kept apart from the player, which may have
+         * moved on), when it ended, and its waiting-list id */
+        property string path: ""
+        property string viewTitle: ""
+        property double endMs: 0
+        property string waitId: ""
+        property bool fromWaiting: false
+
         /* Toggl */
         property bool togglShown: false
         property bool waitToggl: false
@@ -370,7 +419,24 @@ Item {
         readonly property bool sending: prompt.waitToggl || prompt.waitMal
         readonly property bool failed: prompt.togglError.length > 0 || prompt.malError.length > 0
 
-        function openFor(episode, seconds) {
+        /* waiting: an entry of the waiting list; omitted = the episode that
+         * just ended, which is added to the list until it is answered */
+        function openFor(episode, seconds, waiting) {
+            if (waiting) {
+                prompt.path = waiting.path;
+                prompt.viewTitle = waiting.viewTitle ?? "";
+                prompt.endMs = waiting.endMs;
+                prompt.waitId = waiting.id;
+            } else {
+                prompt.path = root.path;
+                prompt.viewTitle = root.viewTitle;
+                prompt.endMs = Date.now();
+                prompt.waitId = String(Date.now()) + "-" + Math.floor(Math.random() * 1e6);
+                root.addWaiting({
+                    id: prompt.waitId, label: episode, seconds: seconds,
+                    path: prompt.path, viewTitle: prompt.viewTitle, endMs: prompt.endMs
+                });
+            }
             prompt.episode = episode;
             prompt.seconds = seconds;
             prompt.editing = false;
@@ -393,10 +459,10 @@ Item {
 
         /* Which MAL entry this file is and what would be sent */
         function computeMal() {
-            const info = Utils.parseMediaInfo(root.path, root.viewTitle);
+            const info = Utils.parseMediaInfo(prompt.path, prompt.viewTitle);
             const show = (info.title ?? "").trim();
-            const season = Mal.seasonOf(root.path);
-            const fileEp = Mal.episodeOf(root.path);
+            const season = Mal.seasonOf(prompt.path);
+            const fileEp = Mal.episodeOf(prompt.path);
             const key = Mal.matchKey(show, season);
             const saved = MalClient.matches()[key];
 
@@ -470,9 +536,9 @@ Item {
             }
             if (doToggl) {
                 prompt.waitToggl = true;
-                const parts = root.labelParts();
+                const parts = root.labelParts(prompt.path, prompt.viewTitle);
                 TogglClient.logEntry(prompt.editing ? minutesBox.value * 60 : prompt.seconds,
-                                     parts.show, parts.episode);
+                                     parts.show, parts.episode, prompt.endMs);
             }
         }
 
@@ -495,7 +561,10 @@ Item {
             }
         }
 
+        /* Answered (logged, skipped, or failed and left to the retry queue) */
         function finish() {
+            root.removeWaiting(prompt.waitId);
+            prompt.waitId = "";
             prompt.close();
         }
 
@@ -503,7 +572,10 @@ Item {
         anchors.centerIn: parent
         modal: true
         closePolicy: Popup.NoAutoClose
-        title: qsTr("Finished %1").arg(prompt.episode)
+        title: prompt.fromWaiting ?
+                   qsTr("Finished %1 (%2)").arg(prompt.episode)
+                       .arg(new Date(prompt.endMs).toLocaleString(Qt.locale(), "d MMM HH:mm")) :
+                   qsTr("Finished %1").arg(prompt.episode)
         onAboutToShow: Utils.modalDialogs += 1
         onClosed: {
             Utils.modalDialogs -= 1;
@@ -514,6 +586,11 @@ Item {
             if (root.quitAfterPrompt) {
                 root.quitAfterPrompt = false;
                 Qt.quit();
+                return;
+            }
+            /* Working through the waiting list: the next one */
+            if (prompt.fromWaiting && root.waitingCount > 0) {
+                Qt.callLater(root.openWaiting);
             }
         }
 

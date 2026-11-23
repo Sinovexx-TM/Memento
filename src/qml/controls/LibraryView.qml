@@ -244,6 +244,7 @@ Rectangle {
     function padList() {
         const out = [];
         if (root.current === null) {
+            out.push(waitingBanner);
             for (let i = 0; i < continueRepeater.count; ++i)
                 out.push(continueRepeater.itemAt(i));
             for (let i = 0; i < tileRepeater.count; ++i)
@@ -507,6 +508,41 @@ Rectangle {
                     active: true
                     text: qsTr("Choose folder…")
                     onClicked: folderDialog.open()
+                }
+            }
+
+            /* Episodes whose log prompt was never answered */
+            Rectangle {
+                id: waitingBanner
+                readonly property int count: root.player.toggl.waitingCount
+                readonly property bool padSelected: root.padItem === waitingBanner
+                function padActivate() { root.player.toggl.openWaiting(); }
+
+                visible: count > 0
+                width: Math.min(parent.width, 460)
+                height: 46
+                radius: 8
+                color: waitingArea.containsMouse || padSelected ? "#3a2a2a" : "#2a1f1f"
+                border.color: padSelected ? "white" : "#7a2a2b"
+                border.width: padSelected ? 2 : 1
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    x: 16
+                    text: waitingBanner.count === 1 ?
+                              qsTr("1 episode waiting to be logged ›") :
+                              qsTr("%1 episodes waiting to be logged ›").arg(waitingBanner.count)
+                    color: root.textColor
+                    font.pixelSize: 15
+                    font.bold: true
+                }
+
+                MouseArea {
+                    id: waitingArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: waitingBanner.padActivate()
                 }
             }
 
