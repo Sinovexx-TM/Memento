@@ -25,37 +25,68 @@ function advanceOf(ch) {
     return value;
 }
 
+/* Text of the blocks shown now, to tell "same text, moved" from "new text" */
+let shownSignature = '';
+
+function signatureOf(layouts) {
+    return JSON.stringify(layouts.map(l => [l.vertical, l.lines.map(line => line.chars.map(c => c.ch).join(''))]));
+}
+
+function placeBlock(div, layout) {
+    div.className = 'ov-block' + (layout.vertical ? ' vertical' : '');
+    div.style.left = layout.left + 'px';
+    div.style.top = layout.top + 'px';
+    div.style.width = layout.width + 'px';
+    div.style.height = layout.height + 'px';
+    div.style.fontFamily = fontFamily ? `"${fontFamily}", sans-serif` : '';
+}
+
+function placeLine(lineDiv, line) {
+    lineDiv.style.marginBlockStart = line.marginBlock + 'px';
+    lineDiv.style.blockSize = line.blockSize + 'px';
+    lineDiv.style.lineHeight = line.blockSize + 'px';
+}
+
+function placeChar(span, c, line, vertical) {
+    span.style.marginInlineStart = c.marginInline + 'px';
+    span.style.inlineSize = c.inlineSize + 'px';
+    span.style.fontSize = fontSizeFor(
+        c.inlineSize, line.blockSize, vertical ? 1 : advanceOf(c.ch), vertical) + 'px';
+}
+
 function render(blocks) {
+    const layouts = (blocks || []).map(layoutBlock).filter(l => l !== null);
+    const signature = signatureOf(layouts) + fontFamily;
+
+    /* Same text that only moved (controls showing, zoom, pan): move the
+     * existing nodes so Yomitan keeps its selection and popup */
+    if (signature === shownSignature && textRoot.children.length === layouts.length) {
+        layouts.forEach((layout, b) => {
+            const div = textRoot.children[b];
+            placeBlock(div, layout);
+            layout.lines.forEach((line, i) => {
+                const lineDiv = div.children[i];
+                placeLine(lineDiv, line);
+                line.chars.forEach((c, k) => placeChar(lineDiv.children[k], c, line, layout.vertical));
+            });
+        });
+        updateState();
+        return;
+    }
+
     const fragment = document.createDocumentFragment();
-    for (const block of blocks || []) {
-        const layout = layoutBlock(block);
-        if (!layout) {
-            continue;
-        }
+    for (const layout of layouts) {
         const div = document.createElement('div');
-        div.className = 'ov-block' + (layout.vertical ? ' vertical' : '');
-        div.style.left = layout.left + 'px';
-        div.style.top = layout.top + 'px';
-        div.style.width = layout.width + 'px';
-        div.style.height = layout.height + 'px';
-        if (fontFamily) {
-            div.style.fontFamily = `"${fontFamily}", sans-serif`;
-        }
+        placeBlock(div, layout);
         for (const line of layout.lines) {
             const lineDiv = document.createElement('div');
             lineDiv.className = 'ov-line';
-            lineDiv.style.marginBlockStart = line.marginBlock + 'px';
-            lineDiv.style.blockSize = line.blockSize + 'px';
-            lineDiv.style.lineHeight = line.blockSize + 'px';
+            placeLine(lineDiv, line);
             for (const c of line.chars) {
                 const span = document.createElement('span');
                 span.className = 'ov-char';
                 span.textContent = c.ch;
-                span.style.marginInlineStart = c.marginInline + 'px';
-                span.style.inlineSize = c.inlineSize + 'px';
-                span.style.fontSize = fontSizeFor(
-                    c.inlineSize, line.blockSize,
-                    layout.vertical ? 1 : advanceOf(c.ch), layout.vertical) + 'px';
+                placeChar(span, c, line, layout.vertical);
                 lineDiv.appendChild(span);
             }
             div.appendChild(lineDiv);
@@ -63,6 +94,8 @@ function render(blocks) {
         fragment.appendChild(div);
     }
     textRoot.replaceChildren(fragment);
+    shownSignature = signature;
+    bridge.log(`text: ${layouts.length} block(s) "${layouts.map(l => l.lines.map(x => x.chars.map(c => c.ch).join('')).join('/')).join(' | ').slice(0, 80)}"`);
     updateState();
 }
 
@@ -83,6 +116,7 @@ function updateState() {
     const key = interactive + ',' + overText;
     if (key !== lastState) {
         lastState = key;
+        bridge.log(`cursor: interactive=${interactive} overText=${overText}`);
         bridge.state({ interactive, overText });
     }
 }
@@ -106,6 +140,7 @@ setInterval(() => {
     const open = popupVisible();
     if (open !== popupOpen) {
         popupOpen = open;
+        bridge.log(`popup: ${open ? 'open' : 'closed'}`);
         bridge.popup(open);
     }
 }, 120);

@@ -15,6 +15,8 @@ MpvPlayer {
     readonly property bool oscHovered:
         !root.ocrMode && (
             subtitleHover.hovered ||
+            YomitanOverlay.hover ||
+            YomitanOverlay.popupHover ||
             (!Features.isMacos && menu.anyHovered) ||
             controls.menuOpen ||
             controlsHover.hovered
@@ -530,7 +532,7 @@ MpvPlayer {
         repeat: false
         running: false
         onTriggered: {
-            if (!root.oscHovered && !definitionPopup.visible)
+            if (!root.oscHovered && !definitionPopup.visible && !YomitanOverlay.popupOpen)
             {
                 root.hideOsc();
             }

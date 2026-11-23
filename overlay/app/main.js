@@ -144,6 +144,7 @@ function applyWindow() {
             overlay.setAlwaysOnTop(true, 'screen-saver');
         }
     } else if (overlay.isVisible()) {
+        writeLog('Hidden by Memento');
         overlay.hide();
         setIgnore(true);
         if (popupOpen) {
@@ -379,6 +380,8 @@ ipcMain.on('state', (_event, state) => {
     send({ type: 'hover', on: !!state.overText, popup: !!state.interactive && !state.overText });
 });
 
+ipcMain.on('log', (_event, message) => writeLog(`[page] ${message}`));
+
 /* A fresh page (first load or after a reload) needs the text again */
 ipcMain.on('loaded', () => send({ type: 'resend' }));
 
@@ -388,11 +391,13 @@ function closePopup() {
     if (!overlay || !popupOpen) {
         return;
     }
+    writeLog('Memento asked to close the popup');
     const wc = overlay.webContents;
     wc.sendInputEvent({ type: 'mouseDown', x: 0, y: 0, button: 'left', clickCount: 1 });
     wc.sendInputEvent({ type: 'mouseUp', x: 0, y: 0, button: 'left', clickCount: 1 });
     setTimeout(() => {
         if (overlay && popupOpen) {
+            writeLog('Popup still open: reloading the page');
             overlay.webContents.reload();
         }
     }, 350);

@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('overlayBridge', {
     onCursor: callback => ipcRenderer.on('cursor', (_e, point) => callback(point)),
     state: state => ipcRenderer.send('state', state),
     popup: open => ipcRenderer.send('popup', open),
-    loaded: () => ipcRenderer.send('loaded')
+    loaded: () => ipcRenderer.send('loaded'),
+    log: message => ipcRenderer.send('log', String(message))
 });
