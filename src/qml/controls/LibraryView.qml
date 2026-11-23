@@ -51,6 +51,7 @@ Rectangle {
     function open() {
         root.currentKey = "";
         root.current = null;
+        root.padItem = null;
         homeFlick.contentY = 0;
         root.refresh();
         root.visible = true;
@@ -129,6 +130,7 @@ Rectangle {
         root.showFolderName = String(WatchHistory.option("series-folder-name", true)) === "true";
         root.currentKey = series ? series.key : "";
         root.current = series;
+        root.padItem = null;
         seriesFlick.contentY = 0;
     }
 
@@ -232,6 +234,93 @@ Rectangle {
                 root.close();
             }
         }
+    }
+
+    /* Controller: the selected card / poster / episode (null = none yet) */
+    property var padItem: null
+
+    /* Items the D-pad moves through on the page shown, in reading order */
+    function padList() {
+        const out = [];
+        if (root.current === null) {
+            for (let i = 0; i < continueRepeater.count; ++i)
+                out.push(continueRepeater.itemAt(i));
+            for (let i = 0; i < tileRepeater.count; ++i)
+                out.push(tileRepeater.itemAt(i));
+        } else {
+            for (let s = 0; s < sectionRepeater.count; ++s) {
+                const section = sectionRepeater.itemAt(s);
+                if (!section || !section.visible)
+                    continue;
+                for (let j = 0; j < section.rows.count; ++j)
+                    out.push(section.rows.itemAt(j));
+            }
+        }
+        return out.filter(item => item && item.visible);
+    }
+
+    function padScroll() {
+        const item = root.padItem;
+        const flick = root.current === null ? homeFlick : seriesFlick;
+        if (!item)
+            return;
+        const p = item.mapToItem(flick.contentItem, 0, 0);
+        const maxY = Math.max(0, flick.contentHeight - flick.height);
+        if (p.y < flick.contentY + 10)
+            flick.contentY = Math.max(0, p.y - 40);
+        else if (p.y + item.height > flick.contentY + flick.height - 10)
+            flick.contentY = Math.min(maxY, p.y + item.height - flick.height + 40);
+    }
+
+    /* D-pad moves the selection, A opens / plays it, B goes back */
+    function handleGamepad(name) {
+        if (name === "b") {
+            root.padItem = null;
+            if (root.current !== null)
+                root.showSeries(null);
+            else if (root.hasFile)
+                root.close();
+            return;
+        }
+        const list = root.padList();
+        if (list.length === 0)
+            return;
+        const cur = list.indexOf(root.padItem);
+        if (cur < 0) {
+            /* First press selects: the next episode on a series page */
+            const next = list.find(item => item.isNext === true);
+            root.padItem = next ?? list[0];
+            root.padScroll();
+            return;
+        }
+        if (name === "a") {
+            root.padItem.padActivate();
+            return;
+        }
+        let target = cur;
+        if (name === "left") {
+            target = Math.max(0, cur - 1);
+        } else if (name === "right") {
+            target = Math.min(list.length - 1, cur + 1);
+        } else if (name === "up" || name === "down") {
+            /* Nearest row above / below, then the closest item in it */
+            const centre = item => item.mapToItem(root, item.width / 2, item.height / 2);
+            const c = centre(list[cur]);
+            const down = name === "down";
+            const others = list.map((item, i) => ({ i: i, p: centre(item) }))
+                .filter(o => down ? o.p.y > c.y + 5 : o.p.y < c.y - 5);
+            if (others.length === 0)
+                return;
+            const rowY = others.reduce((best, o) =>
+                Math.abs(o.p.y - c.y) < Math.abs(best - c.y) ? o.p.y : best, others[0].p.y);
+            const row = others.filter(o => Math.abs(o.p.y - rowY) < 5);
+            target = row.reduce((best, o) =>
+                Math.abs(o.p.x - c.x) < Math.abs(best.p.x - c.x) ? o : best, row[0]).i;
+        } else {
+            return;
+        }
+        root.padItem = list[target];
+        root.padScroll();
     }
 
     Keys.onEscapePressed: {
@@ -438,17 +527,23 @@ Rectangle {
                 readonly property real cardWidth: (width - (columns - 1) * spacing) / columns
 
                 Repeater {
+                    id: continueRepeater
                     model: root.continueItems
 
                     delegate: Rectangle {
                         id: card
                         required property var modelData
 
+                        readonly property bool padSelected: root.padItem === card
+                        function padActivate() { root.play(card.modelData.next, false); }
+
                         width: continueFlow.cardWidth
                         height: Math.round(146 * root.scale)
                         radius: 8
-                        color: cardArea.containsMouse ? root.cardHover : root.cardColor
-                        border.color: cardArea.containsMouse ? "#5a5a5a" : "transparent"
+                        color: cardArea.containsMouse || card.padSelected ? root.cardHover : root.cardColor
+                        border.color: card.padSelected ? "white" :
+                                      cardArea.containsMouse ? "#5a5a5a" : "transparent"
+                        border.width: card.padSelected ? 2 : 1
 
                         MouseArea {
                             id: cardArea
@@ -567,11 +662,15 @@ Rectangle {
                 spacing: 20
 
                 Repeater {
+                    id: tileRepeater
                     model: root.seriesList
 
                     delegate: Column {
                         id: tile
                         required property var modelData
+
+                        readonly property bool padSelected: root.padItem === tile
+                        function padActivate() { root.showSeries(tile.modelData); }
 
                         width: root.posterWidth
                         spacing: 8
@@ -628,7 +727,7 @@ Rectangle {
                                 color: "transparent"
                                 border.color: "white"
                                 border.width: 2
-                                visible: tileArea.containsMouse
+                                visible: tileArea.containsMouse || tile.padSelected
                             }
 
                             MouseArea {
@@ -784,6 +883,7 @@ Rectangle {
             }
 
             Repeater {
+                id: sectionRepeater
                 model: root.current ? root.current.sections : []
 
                 delegate: Column {
@@ -792,6 +892,7 @@ Rectangle {
 
                     /* Deleted (watched) episodes count but aren't listed */
                     readonly property var shown: modelData.episodes.filter(e => !e.ghost)
+                    property alias rows: rowsRepeater
 
                     visible: shown.length > 0
                     width: seriesColumn.width
@@ -814,6 +915,7 @@ Rectangle {
                     }
 
                     Repeater {
+                        id: rowsRepeater
                         model: section.shown
 
                         delegate: Rectangle {
@@ -823,13 +925,17 @@ Rectangle {
                             readonly property var episode: modelData
                             readonly property bool isNext: !!(root.current && root.current.next &&
                                                               root.current.next.key === episode.key)
+                            readonly property bool padSelected: root.padItem === episodeRow
+                            function padActivate() { root.play(episodeRow.episode, false); }
 
                             width: section.width
                             height: 50
                             radius: 6
-                            color: episodeArea.containsMouse ? root.cardHover :
+                            color: episodeArea.containsMouse || episodeRow.padSelected ? root.cardHover :
                                    episodeRow.isNext ? "#2a1f1f" : root.cardColor
-                            border.color: episodeRow.isNext ? "#7a2a2b" : "transparent"
+                            border.color: episodeRow.padSelected ? "white" :
+                                          episodeRow.isNext ? "#7a2a2b" : "transparent"
+                            border.width: episodeRow.padSelected ? 2 : 1
 
                             MouseArea {
                                 id: episodeArea

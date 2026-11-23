@@ -747,16 +747,24 @@ MpvPlayer {
     }
 
     /* Xbox-style controller: A play/pause, left/right seek, LB/RB previous/
-     * next subtitle line, up/down volume, Start fullscreen. The log prompt
+     * next subtitle line, up/down volume, Start fullscreen, Back library.
+     * In the library the D-pad moves, A opens, B goes back. The log prompt
      * gets the buttons first while it is open. */
     Connections {
         target: Gamepad
         function onButtonPressed(name) {
             if (togglLogger.handleGamepad(name))
                 return;
-            if (libraryView.visible || Utils.modalDialogs > 0)
+            if (Utils.modalDialogs > 0)
                 return;
+            if (libraryView.visible) {
+                libraryView.handleGamepad(name);
+                return;
+            }
             switch (name) {
+            case "back":
+                libraryView.open();
+                break;
             case "a":
                 if (root.state.pause)
                     root.controller.play();
