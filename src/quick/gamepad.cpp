@@ -13,6 +13,13 @@
 
 namespace
 {
+constexpr int STICK_DEADZONE = 8000;      /* of 32767 */
+constexpr double CURSOR_MAX_SPEED = 22.0;  /* pixels per poll at full tilt */
+constexpr double WHEEL_MAX = 40.0;         /* wheel units per poll (120 = one notch) */
+constexpr int TRIGGER_DOWN = 120;          /* of 255 */
+constexpr int TRIGGER_UP = 60;
+}
+
 /* Same layout as XINPUT_STATE in xinput.h */
 struct PadState
 {
@@ -23,7 +30,33 @@ struct PadState
     qint16 lx, ly, rx, ry;
 };
 
+namespace
+{
 typedef quint32 (__stdcall *GetStateFn)(quint32, PadState *);
+
+/* -1..1 past the dead zone, curved so small tilts are precise */
+double stickValue(int raw)
+{
+    const int a = raw < 0 ? -raw : raw;
+    if (a <= STICK_DEADZONE)
+    {
+        return 0;
+    }
+    const double v = double(a - STICK_DEADZONE) / double(32767 - STICK_DEADZONE);
+    const double curved = v * v;
+    return raw < 0 ? -curved : curved;
+}
+
+#ifdef Q_OS_WIN
+void sendMouse(DWORD flags, int wheel = 0)
+{
+    INPUT input{};
+    input.type = INPUT_MOUSE;
+    input.mi.dwFlags = flags;
+    input.mi.mouseData = static_cast<DWORD>(wheel);
+    SendInput(1, &input, sizeof(INPUT));
+}
+#endif
 
 constexpr int FAST_MS = 30;    /* while a controller is connected */
 constexpr int SLOW_MS = 1000;  /* looking for one */
@@ -114,6 +147,11 @@ void Gamepad::poll()
         m_timer.setInterval(FAST_MS);
     }
 
+    if (QGuiApplication::applicationState() == Qt::ApplicationActive)
+    {
+        moveMouse(state);
+    }
+
     const quint16 buttons = state.buttons;
     const quint16 pressed = buttons & ~m_lastButtons;
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
@@ -176,4 +214,76 @@ void Gamepad::key(int key)
     QCoreApplication::sendEvent(window, &press);
     QKeyEvent release(QEvent::KeyRelease, key, Qt::NoModifier);
     QCoreApplication::sendEvent(window, &release);
+}
+
+/* Left stick = mouse cursor, RT = left click (held = drag), LT = right
+ * click, right stick = scroll. Real mouse input, so hovering subtitles
+ * opens the lookup popup as with the mouse. */
+void Gamepad::moveMouse(const PadState &state)
+{
+#ifdef Q_OS_WIN
+    const double dx = stickValue(state.lx) * CURSOR_MAX_SPEED;
+    const double dy = -stickValue(state.ly) * CURSOR_MAX_SPEED;
+    if (dx != 0 || dy != 0)
+    {
+        m_moveX += dx;
+        m_moveY += dy;
+        const int stepX = static_cast<int>(m_moveX);
+        const int stepY = static_cast<int>(m_moveY);
+        if (stepX != 0 || stepY != 0)
+        {
+            m_moveX -= stepX;
+            m_moveY -= stepY;
+            POINT p;
+            if (GetCursorPos(&p))
+            {
+                SetCursorPos(p.x + stepX, p.y + stepY);
+            }
+        }
+    }
+    else
+    {
+        m_moveX = 0;
+        m_moveY = 0;
+    }
+
+    const double wheel = stickValue(state.ry) * WHEEL_MAX;
+    if (wheel != 0)
+    {
+        m_wheel += wheel;
+        const int step = static_cast<int>(m_wheel);
+        if (step >= 15 || step <= -15)
+        {
+            m_wheel -= step;
+            sendMouse(MOUSEEVENTF_WHEEL, step);
+        }
+    }
+    else
+    {
+        m_wheel = 0;
+    }
+
+    if (!m_leftDown && state.rightTrigger >= TRIGGER_DOWN)
+    {
+        m_leftDown = true;
+        sendMouse(MOUSEEVENTF_LEFTDOWN);
+    }
+    else if (m_leftDown && state.rightTrigger <= TRIGGER_UP)
+    {
+        m_leftDown = false;
+        sendMouse(MOUSEEVENTF_LEFTUP);
+    }
+    if (!m_rightDown && state.leftTrigger >= TRIGGER_DOWN)
+    {
+        m_rightDown = true;
+        sendMouse(MOUSEEVENTF_RIGHTDOWN);
+    }
+    else if (m_rightDown && state.leftTrigger <= TRIGGER_UP)
+    {
+        m_rightDown = false;
+        sendMouse(MOUSEEVENTF_RIGHTUP);
+    }
+#else
+    Q_UNUSED(state);
+#endif
 }

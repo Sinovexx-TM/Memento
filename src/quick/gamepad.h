@@ -12,6 +12,8 @@
  * xinput1_4.dll is loaded at run time, so there is no link dependency.
  * Presses are only reported while Memento is the active window.
  */
+struct PadState;
+
 class Gamepad : public QObject
 {
     Q_OBJECT
@@ -39,6 +41,13 @@ Q_SIGNALS:
 
 private:
     void poll();
+    void moveMouse(const PadState &state);
+
+    double m_moveX = 0;
+    double m_moveY = 0;
+    double m_wheel = 0;
+    bool m_leftDown = false;
+    bool m_rightDown = false;
 
     QTimer m_timer;
     void *m_getState = nullptr;
