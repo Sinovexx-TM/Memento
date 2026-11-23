@@ -271,9 +271,8 @@ MpvPlayer {
         id: overlayLeaveTimer
         interval: 400
         onTriggered: {
-            if (root.hoverPaused &&
-                    MementoSettings.searchResumeOnHoverExit &&
-                    YomitanOverlay.popupOpen &&
+            /* Any pause (hover or manual): leaving the word closes it */
+            if (YomitanOverlay.popupOpen &&
                     !root.textHovered &&
                     !YomitanOverlay.popupHover &&
                     Utils.modalDialogs === 0)
@@ -294,6 +293,9 @@ MpvPlayer {
             {
                 overlayLeaveTimer.restart();
             }
+        }
+        function onPopupHoverChanged() {
+            onHoverChanged();
         }
         function onPopupOpenChanged() {
             if (!YomitanOverlay.popupOpen)
@@ -575,6 +577,12 @@ MpvPlayer {
         if (!root.state.pause)
         {
             root.hoverPaused = false;
+            /* Playback resumed: Yomitan's popup goes, unless it's in use */
+            if (YomitanOverlay.popupOpen && !YomitanOverlay.popupHover &&
+                    Utils.modalDialogs === 0)
+            {
+                YomitanOverlay.closePopup();
+            }
         }
         if (root.state.pause)
         {
