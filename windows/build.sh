@@ -75,3 +75,6 @@ done
 
 # Get the latest youtube-dl
 curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe -o yt-dlp.exe
+
+# Fork: the Yomitan overlay (Electron + stock Yomitan) in ./overlay
+bash ../../windows/package-overlay.sh ../..

@@ -27,6 +27,10 @@ Dialog {
 
     property Term term: null
 
+    /* Fork (Yomitan overlay): headword shown when there is no Term (the
+     * card was added by Yomitan) */
+    property string headwordText: ""
+
     /* Rows of the first and last subtitle line in the sentence */
     property int firstRow: -1
     property int lastRow: -1
@@ -66,6 +70,15 @@ Dialog {
     function lineText(row) {
         const line = AnkiClient.cardBuilderLine(row);
         return line.text ?? "";
+    }
+
+    /**
+     * Fork: opens the dialog for a card Yomitan added (no Term).
+     * @return See openFor.
+     */
+    function openForHeadword(text) {
+        root.headwordText = text;
+        return root.openFor(null);
     }
 
     /**
@@ -284,7 +297,7 @@ Dialog {
             Label {
                 Layout.fillWidth: true
                 elide: Label.ElideRight
-                text: root.term ? (root.term.expression + (root.term.reading && root.term.reading !== root.term.expression ? "  【" + root.term.reading + "】" : "")) : ""
+                text: root.term ? (root.term.expression + (root.term.reading && root.term.reading !== root.term.expression ? "  【" + root.term.reading + "】" : "")) : root.headwordText
             }
 
             FieldLabel { text: qsTr("Sentence:") }

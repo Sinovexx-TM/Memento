@@ -433,6 +433,23 @@ public:
      */
     Q_INVOKABLE bool mangaActive() const;
 
+    /**
+     * @brief Fork (Yomitan overlay): fills the note Yomitan just added with
+     * what Memento knows: sentence audio, screenshot (or manga page), title,
+     * subtitle/context, using the term profile's fields. Only fields that
+     * exist in that note and are still empty are written; the profile's tags
+     * (and manga tags) are added. Uses the card builder's range if it was
+     * just confirmed.
+     *
+     * @param sinceMs Time (ms since epoch) just before Yomitan added the
+     * note; the newest note added after it is used. 0 = newest note today.
+     * @return success, id (the note), filled (field names), error.
+     */
+    Q_INVOKABLE QCoro::QmlTask fillNewNote(double sinceMs);
+
+    [[nodiscard]]
+    QCoro::Task<QVariantMap> fillNewNoteAsync(double sinceMs);
+
 signals:
     /**
      * @brief Emitted when the context is changed.

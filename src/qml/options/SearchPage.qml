@@ -56,10 +56,95 @@ Page {
             width: parent.width
             spacing: root.groupSpacing
 
+            /* Fork: the real Yomitan over the player (overlay program) */
+            SettingsBox {
+                id: yomitanBox
+                Layout.preferredWidth: root.preferredWidth
+                Layout.topMargin: root.groupSpacing
+                Layout.alignment: Qt.AlignHCenter
+                title: qsTr("Yomitan (saved immediately)")
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: root.groupSpacing
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Look words up with the real Yomitan (Memento's own popup is only used when this is off or the overlay can't start)")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            enabled: YomitanOverlay.available
+                            checked: YomitanOverlay.enabled
+                            onClicked: YomitanOverlay.enabled = checked
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Label.WordWrap
+                        opacity: 0.75
+                        text: qsTr("Status: %1").arg(YomitanOverlay.status)
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Yomitan's own settings: dictionaries, Anki card format, scanning, Backup (import your Chrome Yomitan's settings and dictionaries there)")
+                        }
+                        Button {
+                            Layout.alignment: Qt.AlignRight
+                            enabled: YomitanOverlay.active
+                            text: qsTr("Open")
+                            onClicked: YomitanOverlay.openSettings()
+                        }
+                    }
+
+                    SettingsBoxSeparator {
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignLeft
+                            wrapMode: Label.WordWrap
+                            text: qsTr("Show the overlay's text in red (to check it lines up with the subtitles)")
+                        }
+                        Switch {
+                            Layout.alignment: Qt.AlignRight
+                            checked: YomitanOverlay.showText
+                            onClicked: YomitanOverlay.showText = checked
+                        }
+                    }
+
+                    RowLayout {
+                        visible: YomitanOverlay.enabled && !YomitanOverlay.active && YomitanOverlay.available
+                        Label {
+                            Layout.fillWidth: true
+                            wrapMode: Label.WordWrap
+                            text: qsTr("The overlay isn't running.")
+                        }
+                        Button {
+                            text: qsTr("Restart")
+                            onClicked: YomitanOverlay.restart()
+                        }
+                    }
+                }
+            }
+
             SettingsBox {
                 id: matcherBox
                 Layout.preferredWidth: root.preferredWidth
-                Layout.topMargin: root.groupSpacing
                 Layout.alignment: Qt.AlignHCenter
                 title: qsTr("Matcher")
 

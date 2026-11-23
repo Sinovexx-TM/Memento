@@ -82,6 +82,41 @@ Item {
         return model;
     }
 
+    /**
+     * Fork (Yomitan overlay): every character's box, line by line.
+     * @param target The item the boxes are relative to.
+     * @return [{text, rects: [[x, y, w, h], ...]}] (one rect per UTF-16 unit)
+     */
+    function charBoxes(target) {
+        let lines = [];
+        for (let i = 0; i < shapeRepeater.count; ++i)
+        {
+            const line = shapeRepeater.itemAt(i);
+            if (!line || !line.edit)
+            {
+                continue;
+            }
+            const edit = line.edit;
+            const text = line.text;
+            let rects = [];
+            for (let k = 0; k < text.length; ++k)
+            {
+                const a = edit.positionToRectangle(k);
+                const endX = k + 1 < text.length
+                    ? edit.positionToRectangle(k + 1).x
+                    : edit.implicitWidth;
+                const p0 = edit.mapToItem(target, a.x, a.y);
+                const p1 = edit.mapToItem(target, endX, a.y + a.height);
+                rects.push([p0.x, p0.y, Math.max(1, p1.x - p0.x), Math.max(1, p1.y - p0.y)]);
+            }
+            if (rects.length > 0)
+            {
+                lines.push({ "text": text, "rects": rects });
+            }
+        }
+        return lines;
+    }
+
     implicitWidth: content.width
     implicitHeight: content.height
 
@@ -105,6 +140,9 @@ Item {
 
                 required property string text
                 required property int offset
+
+                /* Fork: lets charBoxes() reach this line's layout */
+                readonly property alias edit: textEdit
 
                 readonly property int selectionStart: {
                     if (root.selectionStart < 0)

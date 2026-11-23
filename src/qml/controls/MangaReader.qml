@@ -291,6 +291,26 @@ Rectangle {
         return false;
     }
 
+    /* Fork (Yomitan overlay): text of the pages shown, see overlayBlocks */
+    function overlayBlocks(target) {
+        let out = [];
+        for (let i = 0; i < pageRepeater.count; i++) {
+            const item = pageRepeater.itemAt(i);
+            if (item) {
+                out = out.concat(item.overlayBlocks(target));
+            }
+        }
+        return out;
+    }
+
+    /* Looking words up in the overlay counts as reading */
+    Connections {
+        target: YomitanOverlay
+        enabled: root.visible
+        function onHoverChanged() { root.activity(); }
+        function onPopupOpenChanged() { root.activity(); }
+    }
+
     onWidthChanged: clampPan()
     onHeightChanged: clampPan()
 
@@ -456,6 +476,41 @@ Rectangle {
                     return Qt.rect(p.x, p.y, pageImage.paintedWidth, pageImage.paintedHeight);
                 }
 
+                /* Fork (Yomitan overlay): this page's text with every
+                 * character's box, relative to `target` (zoom and pan
+                 * included). One overlay line per mokuro line. */
+                function overlayBlocks(target) {
+                    const out = [];
+                    if (!pageItem.pageData || pageImage.paintedWidth <= 0) {
+                        return out;
+                    }
+                    const s = pageImage.scale_;
+                    for (const block of pageItem.pageData.blocks || []) {
+                        const lines = [];
+                        const blockLines = block.lines || [];
+                        let offset = 0;
+                        for (let i = 0; i < blockLines.length; ++i) {
+                            const text = String(blockLines[i]);
+                            const rects = [];
+                            for (let k = 0; k < text.length; ++k) {
+                                const r = Manga.charRect(block, offset + k);
+                                if (!r) {
+                                    rects.push(null);
+                                    continue;
+                                }
+                                const p0 = pageItem.mapToItem(target, pageImage.offX + r.x * s, pageImage.offY + r.y * s);
+                                const p1 = pageItem.mapToItem(target, pageImage.offX + (r.x + r.w) * s,
+                                                              pageImage.offY + (r.y + r.h) * s);
+                                rects.push([p0.x, p0.y, p1.x - p0.x, p1.y - p0.y]);
+                            }
+                            offset += text.length;
+                            lines.push({ text: text, rects: rects });
+                        }
+                        out.push({ vertical: !!block.vertical, lines: lines });
+                    }
+                    return out;
+                }
+
                 function containsReaderPoint(x, y) {
                     const p = pageImage.mapFromItem(root, x, y);
                     return pageImage.paintedWidth > 0 &&
@@ -528,6 +583,9 @@ Rectangle {
                                     return;
                                 }
                                 root.activity();
+                                if (YomitanOverlay.active) {
+                                    return;   /* Yomitan does the lookups */
+                                }
                                 const p = point.position;
                                 const ix = (blockItem.x + p.x - pageImage.offX) / pageImage.scale_;
                                 const iy = (blockItem.y + p.y - pageImage.offY) / pageImage.scale_;

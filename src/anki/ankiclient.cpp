@@ -25,6 +25,8 @@
 #include <QGuiApplication>
 #include <QNetworkReply>
 #include <QtConcurrent>
+#include <QThread>
+#include <QRegularExpression>
 
 #ifdef MEMENTO_SYSTEM_QCORO
 #include <QCoroFuture>
@@ -1394,5 +1396,211 @@ void AnkiClient::applyCardBuilderOverride(
     }
     term->setSubtitle(o.text);
 }
+
+/* Begin Yomitan overlay (fork) */
+
+namespace
+{
+/* True if an Anki field shows nothing (tags and spaces only) */
+bool fieldIsEmpty(QString value)
+{
+    static const QRegularExpression TAGS("<[^>]*>");
+    value.remove(TAGS);
+    value.replace("&nbsp;", " ");
+    return value.trimmed().isEmpty();
+}
+}
+
+QCoro::QmlTask AnkiClient::fillNewNote(double sinceMs)
+{
+    return fillNewNoteAsync(sinceMs);
+}
+
+QCoro::Task<QVariantMap> AnkiClient::fillNewNoteAsync(double sinceMs)
+{
+    QVariantMap failed;
+    failed[Key::SUCCESS] = false;
+    if (profile() == nullptr)
+    {
+        failed[Key::ERROR] = tr(Error::NO_PROFILE_SET);
+        co_return failed;
+    }
+
+    /* Everything about the current line is read now, before waiting on
+     * Anki, so a moving video can't change it */
+    std::unique_ptr<AnkiProfile> profileCopy{profile()->clone(this)};
+    std::unique_ptr<Expression> exp{new Expression(this)};
+    populate(exp.get());
+    const CardBuilderOverride o = m_cardOverride;
+    m_cardOverride = {};
+    if (o.active)
+    {
+        exp->setStartTime(o.start + profileCopy->audioPadStart());
+        exp->setEndTime(o.end - profileCopy->audioPadEnd());
+        exp->setSubtitle(o.text);
+    }
+
+    /* The note: newest one added since sinceMs (ids are creation times) */
+    qint64 noteId = 0;
+    for (int attempt = 0; attempt < 5 && noteId == 0; ++attempt)
+    {
+        if (attempt > 0)
+        {
+            co_await QtConcurrent::run([] () { QThread::msleep(400); });
+        }
+        QJsonObject params;
+        params["query"] = "added:1";
+        std::unique_ptr<QNetworkReply> reply = co_await makeRequest(
+            profileCopy.get(), "findNotes", params
+        );
+        QString error;
+        const QJsonObject replyObj = processReply(*reply, error);
+        if (!error.isEmpty())
+        {
+            failed[Key::ERROR] = error;
+            co_return failed;
+        }
+        for (const QJsonValue &value : replyObj["result"].toArray())
+        {
+            const qint64 id = qint64(value.toDouble());
+            if (id > noteId && (sinceMs <= 0 || id >= qint64(sinceMs) - 10000))
+            {
+                noteId = id;
+            }
+        }
+    }
+    if (noteId == 0)
+    {
+        failed[Key::ERROR] = tr("Could not find the new card in Anki");
+        co_return failed;
+    }
+
+    /* Its fields as they are now */
+    QJsonObject infoParams;
+    infoParams["notes"] = QJsonArray{double(noteId)};
+    std::unique_ptr<QNetworkReply> infoReply = co_await makeRequest(
+        profileCopy.get(), "notesInfo", infoParams
+    );
+    QString infoError;
+    const QJsonObject infoObj = processReply(*infoReply, infoError);
+    const QJsonArray infos = infoObj["result"].toArray();
+    if (!infoError.isEmpty() || infos.isEmpty() || !infos[0].isObject())
+    {
+        failed[Key::ERROR] = infoError.isEmpty() ? tr("Could not read the new card") : infoError;
+        co_return failed;
+    }
+    const QJsonObject noteFields = infos[0].toObject()["fields"].toObject();
+    QStringList noteTags;
+    for (const QJsonValue &tag : infos[0].toObject()["tags"].toArray())
+    {
+        noteTags << tag.toString();
+    }
+    QSet<QString> emptyFields;
+    for (auto it = noteFields.constBegin(); it != noteFields.constEnd(); ++it)
+    {
+        if (fieldIsEmpty(it.value().toObject()["value"].toString()))
+        {
+            emptyFields.insert(it.key());
+        }
+    }
+
+    /* What Memento can give, from the profile's fields */
+    Anki::Note::Context ctx = co_await QtConcurrent::run(
+        [this, &profile = *profileCopy, &line = *exp] () -> Anki::Note::Context
+        {
+            return Anki::Note::buildShared(*m_context, profile, line);
+        }
+    );
+
+    QJsonObject note;
+    note["id"] = double(noteId);
+    QJsonObject fields;
+    QStringList filled;
+    const QJsonObject built = ctx.ankiObject["fields"].toObject();
+    for (auto it = built.constBegin(); it != built.constEnd(); ++it)
+    {
+        const QString value = it.value().toString();
+        if (emptyFields.contains(it.key()) && !fieldIsEmpty(value))
+        {
+            fields[it.key()] = value;
+            filled << it.key();
+        }
+    }
+    note["fields"] = fields;
+
+    for (const char *kind : {"audio", "picture", "video"})
+    {
+        QJsonArray kept;
+        for (const QJsonValue &value : ctx.ankiObject[kind].toArray())
+        {
+            QJsonObject media = value.toObject();
+            QJsonArray mediaFields;
+            for (const QJsonValue &field : media["fields"].toArray())
+            {
+                if (emptyFields.contains(field.toString()))
+                {
+                    mediaFields.append(field);
+                    if (!filled.contains(field.toString()))
+                    {
+                        filled << field.toString();
+                    }
+                }
+            }
+            if (!mediaFields.isEmpty())
+            {
+                media["fields"] = mediaFields;
+                kept.append(media);
+            }
+        }
+        if (!kept.isEmpty())
+        {
+            note[kind] = kept;
+        }
+    }
+
+    if (!filled.isEmpty())
+    {
+        QJsonObject updateParams;
+        updateParams["note"] = note;
+        std::unique_ptr<QNetworkReply> updateReply = co_await makeRequest(
+            profileCopy.get(), "updateNoteFields", updateParams
+        );
+        QString updateError;
+        processReply(*updateReply, updateError);
+        if (!updateError.isEmpty())
+        {
+            failed[Key::ERROR] = updateError;
+            co_return failed;
+        }
+    }
+
+    QStringList newTags;
+    for (const QJsonValue &tag : ctx.ankiObject["tags"].toArray())
+    {
+        if (!tag.toString().isEmpty() && !noteTags.contains(tag.toString()))
+        {
+            newTags << tag.toString();
+        }
+    }
+    if (!newTags.isEmpty())
+    {
+        QJsonObject tagParams;
+        tagParams["notes"] = QJsonArray{double(noteId)};
+        tagParams["tags"] = newTags.join(' ');
+        std::unique_ptr<QNetworkReply> tagReply = co_await makeRequest(
+            profileCopy.get(), "addTags", tagParams
+        );
+        QString tagError;
+        processReply(*tagReply, tagError);
+    }
+
+    QVariantMap result;
+    result[Key::SUCCESS] = true;
+    result[Key::ID] = double(noteId);
+    result["filled"] = filled;
+    co_return result;
+}
+
+/* End Yomitan overlay (fork) */
 
 /* End Card Builder */

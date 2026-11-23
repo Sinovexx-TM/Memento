@@ -193,3 +193,17 @@ target_link_libraries(
     PRIVATE Qt6::Gui
     PRIVATE Qt6::Quick
 )
+
+add_library(
+    yomitanoverlay
+    yomitanoverlay.cpp
+    yomitanoverlay.h
+)
+target_compile_features(yomitanoverlay PRIVATE cxx_std_20)
+target_include_directories(yomitanoverlay PRIVATE ${MEMENTO_INCLUDE_DIRS})
+target_compile_options(yomitanoverlay PRIVATE ${MEMENTO_COMPILER_FLAGS})
+target_link_libraries(
+    yomitanoverlay
+    PUBLIC Qt6::Core
+    PUBLIC Qt6::Network
+)

@@ -504,6 +504,18 @@ MenuBar {
             onTriggered: controllerDialog.open()
         }
 
+        /* Fork: the Yomitan overlay */
+        Action {
+            text: qsTr("&Yomitan Settings")
+            enabled: YomitanOverlay.active
+            onTriggered: YomitanOverlay.openSettings()
+        }
+
+        Action {
+            text: qsTr("&Fill Last Card (audio, picture)")
+            onTriggered: root.player.fillYomitanNote({ time: 0, fields: {} })
+        }
+
         Action {
             text: qsTr("&Show Search")
             checkable: true

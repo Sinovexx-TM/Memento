@@ -1,0 +1,369 @@
+/*
+ * Memento Yomitan overlay (fork).
+ *
+ * A see-through, always-on-top window over Memento's player. Memento sends
+ * the text it shows (subtitles or manga bubbles) with the exact screen box of
+ * every character; the page lays invisible text on those boxes so the real,
+ * unmodified Yomitan extension can scan it. The window lets clicks through
+ * everywhere except over that text and Yomitan's popup.
+ *
+ * Talks to Memento over a local TCP connection (port given as --port=N),
+ * one JSON object per line:
+ *   Memento -> overlay: window {x,y,w,h,visible}, text {blocks}, debug {on},
+ *                       openSettings, quit
+ *   overlay -> Memento: ready {extension}, hover {on}, popup {open},
+ *                       noteAdded {time, fields}, log {message}
+ *
+ * Yomitan runs as a separate program (GPL-3); nothing of it is copied here.
+ */
+'use strict';
+
+const { app, BrowserWindow, session, screen, ipcMain } = require('electron');
+const net = require('net');
+const path = require('path');
+const fs = require('fs');
+
+/* Own profile folder next to Memento's config, so Yomitan's dictionaries and
+ * settings survive updates and don't mix with any other Electron app. */
+const configRoot = path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'memento');
+app.setPath('userData', path.join(configRoot, 'yomitan-overlay'));
+
+if (!app.requestSingleInstanceLock()) {
+    app.quit();
+}
+
+/* Transparent windows need the GPU compositor; keep it on but don't let a
+ * hidden window throttle timers (the cursor poll must keep running). */
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+
+const portArg = process.argv.find(a => a.startsWith('--port='));
+const port = portArg ? Number(portArg.slice(7)) : 0;
+
+let overlay = null;
+let settingsWindow = null;
+let extension = null;
+let socket = null;
+let inbuf = '';
+
+let windowRect = null;          /* {x,y,w,h} in screen DIPs */
+let wantVisible = false;
+let ignoring = true;            /* click-through state */
+let popupOpen = false;
+let lastCursor = '';
+
+function send(obj) {
+    if (socket && !socket.destroyed) {
+        socket.write(JSON.stringify(obj) + '\n');
+    }
+}
+
+function log(message) {
+    send({ type: 'log', message: String(message) });
+}
+
+function yomitanDir() {
+    const packaged = path.join(process.resourcesPath || '', 'yomitan');
+    if (fs.existsSync(path.join(packaged, 'manifest.json'))) {
+        return packaged;
+    }
+    return path.join(__dirname, '..', 'yomitan');
+}
+
+async function loadYomitan() {
+    const dir = yomitanDir();
+    if (!fs.existsSync(path.join(dir, 'manifest.json'))) {
+        log('Yomitan not found at ' + dir);
+        return null;
+    }
+    const api = session.defaultSession.extensions || session.defaultSession;
+    try {
+        const ext = await api.loadExtension(dir, { allowFileAccess: true });
+        return ext;
+    } catch (e) {
+        log('Could not load Yomitan: ' + e.message);
+        return null;
+    }
+}
+
+function setIgnore(ignore) {
+    if (!overlay || ignoring === ignore) {
+        return;
+    }
+    ignoring = ignore;
+    overlay.setIgnoreMouseEvents(ignore, { forward: true });
+}
+
+function applyWindow() {
+    if (!overlay) {
+        return;
+    }
+    if (windowRect && windowRect.w > 0 && windowRect.h > 0) {
+        const b = overlay.getBounds();
+        const r = {
+            x: Math.round(windowRect.x), y: Math.round(windowRect.y),
+            width: Math.round(windowRect.w), height: Math.round(windowRect.h)
+        };
+        if (b.x !== r.x || b.y !== r.y || b.width !== r.width || b.height !== r.height) {
+            overlay.setBounds(r);
+        }
+    }
+    if (wantVisible && windowRect) {
+        if (!overlay.isVisible()) {
+            overlay.showInactive();
+            overlay.setAlwaysOnTop(true, 'screen-saver');
+        }
+    } else if (overlay.isVisible()) {
+        overlay.hide();
+        setIgnore(true);
+        if (popupOpen) {
+            /* Don't leave a stale Yomitan popup for next time */
+            overlay.webContents.reload();
+        }
+    }
+}
+
+function handleMessage(msg) {
+    switch (msg.type) {
+    case 'window':
+        windowRect = { x: msg.x, y: msg.y, w: msg.w, h: msg.h };
+        wantVisible = !!msg.visible;
+        applyWindow();
+        break;
+    case 'text':
+    case 'debug':
+        if (overlay) {
+            overlay.webContents.send('memento', msg);
+        }
+        break;
+    case 'openSettings':
+        openSettings();
+        break;
+    case 'closePopup':
+        closePopup();
+        break;
+    case 'quit':
+        app.quit();
+        break;
+    }
+}
+
+function connect() {
+    if (!port) {
+        return;
+    }
+    socket = net.createConnection({ host: '127.0.0.1', port }, () => {
+        send({ type: 'ready', extension: !!extension, version: extension ? extension.version : '' });
+    });
+    socket.setEncoding('utf8');
+    socket.on('data', chunk => {
+        inbuf += chunk;
+        let nl;
+        while ((nl = inbuf.indexOf('\n')) >= 0) {
+            const line = inbuf.slice(0, nl);
+            inbuf = inbuf.slice(nl + 1);
+            if (!line.trim()) {
+                continue;
+            }
+            try {
+                handleMessage(JSON.parse(line));
+            } catch (e) {
+                /* ignore malformed lines */
+            }
+        }
+    });
+    /* Memento closed or crashed: nothing left to overlay */
+    socket.on('close', () => app.quit());
+    socket.on('error', () => app.quit());
+}
+
+function openSettings() {
+    if (!extension) {
+        return;
+    }
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.show();
+        settingsWindow.focus();
+        return;
+    }
+    settingsWindow = new BrowserWindow({
+        width: 1100,
+        height: 850,
+        title: 'Yomitan Settings',
+        autoHideMenuBar: true,
+        backgroundColor: '#1e1e1e',
+        webPreferences: { contextIsolation: true }
+    });
+    settingsWindow.removeMenu();
+    settingsWindow.loadURL(`chrome-extension://${extension.id}/settings.html`);
+    settingsWindow.on('closed', () => { settingsWindow = null; });
+}
+
+/* Notes Yomitan adds go to AnkiConnect over HTTP. Watching the request lets
+ * Memento add the audio and picture to exactly that note afterwards. */
+const pendingNotes = new Map();
+
+function readBody(details) {
+    if (!details.uploadData) {
+        return null;
+    }
+    try {
+        const text = details.uploadData
+            .map(part => part.bytes ? Buffer.from(part.bytes).toString('utf8') : '')
+            .join('');
+        return JSON.parse(text);
+    } catch (e) {
+        return null;
+    }
+}
+
+function addedNotes(body) {
+    if (!body || typeof body !== 'object') {
+        return [];
+    }
+    const params = body.params || {};
+    if (body.action === 'addNote' && params.note) {
+        return [params.note];
+    }
+    if (body.action === 'addNotes' && Array.isArray(params.notes)) {
+        return params.notes;
+    }
+    if (body.action === 'multi' && Array.isArray(params.actions)) {
+        return params.actions.flatMap(addedNotes);
+    }
+    return [];
+}
+
+function watchAnki() {
+    const filter = { urls: ['http://*/*', 'https://*/*'] };
+    session.defaultSession.webRequest.onBeforeRequest(filter, (details, callback) => {
+        if (details.method === 'POST') {
+            const notes = addedNotes(readBody(details));
+            if (notes.length > 0) {
+                pendingNotes.set(details.id, { time: Date.now(), notes });
+            }
+        }
+        callback({});
+    });
+    session.defaultSession.webRequest.onCompleted(filter, details => {
+        const pending = pendingNotes.get(details.id);
+        if (!pending) {
+            return;
+        }
+        pendingNotes.delete(details.id);
+        if (details.statusCode !== 200) {
+            return;
+        }
+        const note = pending.notes[pending.notes.length - 1];
+        send({
+            type: 'noteAdded',
+            time: pending.time,
+            deck: note.deckName || '',
+            model: note.modelName || '',
+            fields: note.fields || {}
+        });
+    });
+    session.defaultSession.webRequest.onErrorOccurred(filter, details => {
+        pendingNotes.delete(details.id);
+    });
+}
+
+/* Click-through except over the text and the popup. The page decides what
+ * is under the cursor; the cursor position comes from here so it also
+ * works while the window ignores the mouse. */
+function pollCursor() {
+    if (!overlay || !overlay.isVisible() || !windowRect) {
+        return;
+    }
+    const p = screen.getCursorScreenPoint();
+    const b = overlay.getBounds();
+    const x = p.x - b.x;
+    const y = p.y - b.y;
+    const inside = x >= 0 && y >= 0 && x < b.width && y < b.height;
+    const key = inside ? x + ',' + y : 'out';
+    if (key === lastCursor) {
+        return;
+    }
+    lastCursor = key;
+    overlay.webContents.send('cursor', inside ? { x, y } : null);
+}
+
+function createOverlay() {
+    overlay = new BrowserWindow({
+        width: 800,
+        height: 600,
+        show: false,
+        frame: false,
+        transparent: true,
+        backgroundColor: '#00000000',
+        hasShadow: false,
+        resizable: false,
+        movable: false,
+        minimizable: false,
+        maximizable: false,
+        fullscreenable: false,
+        skipTaskbar: true,
+        focusable: false,
+        alwaysOnTop: true,
+        title: 'Memento Yomitan Overlay',
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false,
+            backgroundThrottling: false
+        }
+    });
+    overlay.setIgnoreMouseEvents(true, { forward: true });
+    overlay.setAlwaysOnTop(true, 'screen-saver');
+    overlay.loadFile(path.join(__dirname, 'index.html'));
+    overlay.webContents.on('did-finish-load', () => {
+        lastCursor = '';
+        if (popupOpen) {
+            send({ type: 'popup', open: false });
+        }
+        popupOpen = false;
+        ignoring = true;
+        overlay.setIgnoreMouseEvents(true, { forward: true });
+    });
+    overlay.on('closed', () => { overlay = null; });
+}
+
+ipcMain.on('state', (_event, state) => {
+    setIgnore(!state.interactive);
+    /* on: over the text; popup: over something else of ours (the popup) */
+    send({ type: 'hover', on: !!state.overText, popup: !!state.interactive && !state.overText });
+});
+
+/* A fresh page (first load or after a reload) needs the text again */
+ipcMain.on('loaded', () => send({ type: 'resend' }));
+
+/* Close Yomitan's popup: a click on an empty spot of the page closes it the
+ * way clicking elsewhere does; if it is still open, reload the page. */
+function closePopup() {
+    if (!overlay || !popupOpen) {
+        return;
+    }
+    const wc = overlay.webContents;
+    wc.sendInputEvent({ type: 'mouseDown', x: 0, y: 0, button: 'left', clickCount: 1 });
+    wc.sendInputEvent({ type: 'mouseUp', x: 0, y: 0, button: 'left', clickCount: 1 });
+    setTimeout(() => {
+        if (overlay && popupOpen) {
+            overlay.webContents.reload();
+        }
+    }, 350);
+}
+
+ipcMain.on('popup', (_event, open) => {
+    popupOpen = !!open;
+    send({ type: 'popup', open: popupOpen });
+});
+
+app.whenReady().then(async () => {
+    watchAnki();
+    extension = await loadYomitan();
+    createOverlay();
+    connect();
+    setInterval(pollCursor, 30);
+});
+
+/* Only Memento decides when this ends */
+app.on('window-all-closed', () => {});

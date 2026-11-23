@@ -118,6 +118,25 @@ Anki::Note::Context build(
     bool media);
 
 /**
+ * @brief Fork (Yomitan overlay): the fields of the term profile that Memento
+ * can fill without a dictionary entry: media ({audio-media}, {audio-context},
+ * {screenshot}, {screenshot-video}, {video}) and {title}, {subtitle},
+ * {sentence}, {context} and their -2 versions. A field that also uses any
+ * other marker is left out. Tags are the profile's (plus manga tags).
+ *
+ * @param context The context for the program.
+ * @param profile The profile whose term fields are used.
+ * @param exp The current line (populated by AnkiClient).
+ * @return A Context whose ankiObject has "fields", "tags" and the media
+ * arrays ("audio", "picture", "video").
+ */
+[[nodiscard]]
+Anki::Note::Context buildShared(
+    const ::Context &context,
+    const AnkiProfile &profile,
+    const Expression &exp);
+
+/**
  * @brief Manga reader: use this image file instead of a video screenshot,
  * add no sentence audio or video, and add these tags. An empty path turns
  * it off.

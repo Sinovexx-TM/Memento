@@ -1,0 +1,8 @@
+{
+  "name": "memento-overlay",
+  "productName": "Memento Yomitan Overlay",
+  "version": "1.0.0",
+  "description": "See-through window that puts Memento's subtitles and manga text under the real Yomitan",
+  "main": "main.js",
+  "license": "GPL-2.0-only"
+}

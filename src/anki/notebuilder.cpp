@@ -2691,4 +2691,96 @@ Anki::Note::Context Anki::Note::build(
     return ctx;
 }
 
+Anki::Note::Context Anki::Note::buildShared(
+    const ::Context &appCtx,
+    const AnkiProfile &profile,
+    const Expression &exp)
+{
+    static const QStringList SHARED{
+        Anki::Marker::AUDIO_MEDIA,
+        Anki::Marker::AUDIO_CONTEXT,
+        Anki::Marker::SCREENSHOT,
+        Anki::Marker::SCREENSHOT_VIDEO,
+        Anki::Marker::VIDEO,
+        Anki::Marker::TITLE,
+        Anki::Marker::SUBTITLE,
+        Anki::Marker::SUBTITLE_ALT,
+        Anki::Marker::SUBTITLE_SEC,
+        Anki::Marker::SUBTITLE_SEC_ALT,
+        Anki::Marker::CONTEXT,
+        Anki::Marker::CONTEXT_SEC,
+    };
+
+    Anki::Note::Context ctx;
+    ctx.setTags(profile.tags() + mangaTags());
+
+    FieldContext fieldCtx;
+    QJsonObject fieldsObj;
+    for (const AnkiField &field : profile.termFields()->items())
+    {
+        QString value = field.value;
+        const QList<Anki::Tokenizer::Token> tokens =
+            Anki::Tokenizer::tokenize(value);
+
+        /* Only fields made of markers Memento knows by itself */
+        bool shared = !tokens.isEmpty();
+        for (const Anki::Tokenizer::Token &token : tokens)
+        {
+            for (const Anki::Tokenizer::Marker &marker : token.markers)
+            {
+                if (!SHARED.contains(marker.marker))
+                {
+                    shared = false;
+                }
+            }
+        }
+        if (!shared)
+        {
+            continue;
+        }
+
+        FieldContext candidate = fieldCtx;
+        for (const Anki::Tokenizer::Token &token : tokens)
+        {
+            MarkerResult finalResult{};
+            for (const Anki::Tokenizer::Marker &marker : token.markers)
+            {
+                MarkerResult result = processMarkerCommon(
+                    profile, exp, marker, field.name, candidate
+                );
+                if (!result.isEmpty())
+                {
+                    finalResult = std::move(result);
+                    break;
+                }
+                else if (result.handled)
+                {
+                    finalResult = std::move(result);
+                    continue;
+                }
+            }
+            if (finalResult.handled)
+            {
+                value.replace(token.raw, finalResult.text);
+            }
+        }
+        fieldCtx = std::move(candidate);
+        fieldsObj[field.name] = value;
+    }
+    ctx.setFields(fieldsObj);
+
+    const bool manga = Anki::Note::imageSourceActive();
+    if (!manga)
+    {
+        createAudioMedia(appCtx, profile, exp, fieldCtx, ctx);
+    }
+    createScreenshot(appCtx, profile, fieldCtx, ctx);
+    createScreenshotVideo(appCtx, profile, fieldCtx, ctx);
+    if (!manga)
+    {
+        createVideo(appCtx, profile, exp, fieldCtx, ctx);
+    }
+    return ctx;
+}
+
 /* End Public Functions */

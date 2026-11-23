@@ -2,6 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import Ripose.Memento
 
+import "../definition"
+
 MpvPlayer {
     id: root
 
@@ -202,7 +204,9 @@ MpvPlayer {
             root.hoverPaused = false;
             return;
         }
-        if (subtitleHover.hovered || definitionPopup.visible)
+        if (subtitleHover.hovered || definitionPopup.visible ||
+                YomitanOverlay.hover || YomitanOverlay.popupHover ||
+                YomitanOverlay.popupOpen)
         {
             return;
         }
@@ -231,6 +235,140 @@ MpvPlayer {
                 definitionPopup.clearResults();
             }
         }
+    }
+
+    /* Fork (Yomitan overlay): the subtitles count as hovered while the
+     * cursor is on the overlay's copy of them */
+    readonly property bool textHovered: subtitleHover.hovered || YomitanOverlay.hover
+
+    onTextHoveredChanged: {
+        if (!root.textHovered)
+        {
+            hoverResumeTimer.restart();
+            popupLeaveTimer.restart();
+            overlayLeaveTimer.restart();
+        }
+        else if (MementoSettings.searchPauseOnHover)
+        {
+            hoverResumeTimer.stop();
+            popupLeaveTimer.stop();
+            overlayLeaveTimer.stop();
+            /* Only a pause started here may be resumed automatically */
+            if (!root.state.pause)
+            {
+                root.hoverPaused = true;
+                root.hoverPauseTime = Date.now();
+            }
+            root.controller.pause();
+        }
+    }
+
+    /* Like popupLeaveTimer, for Yomitan's popup: close it once the cursor
+     * is on neither the subtitles nor the popup, so playback can resume */
+    Timer {
+        id: overlayLeaveTimer
+        interval: 400
+        onTriggered: {
+            if (root.hoverPaused &&
+                    MementoSettings.searchResumeOnHoverExit &&
+                    YomitanOverlay.popupOpen &&
+                    !root.textHovered &&
+                    !YomitanOverlay.popupHover &&
+                    Utils.modalDialogs === 0)
+            {
+                YomitanOverlay.closePopup();
+            }
+        }
+    }
+
+    Connections {
+        target: YomitanOverlay
+        function onHoverChanged() {
+            if (YomitanOverlay.hover || YomitanOverlay.popupHover)
+            {
+                overlayLeaveTimer.stop();
+            }
+            else
+            {
+                overlayLeaveTimer.restart();
+            }
+        }
+        function onPopupOpenChanged() {
+            if (!YomitanOverlay.popupOpen)
+            {
+                interactiveTimer.restart();
+                hoverResumeTimer.restart();
+            }
+        }
+        function onNoteAdded(info) {
+            root.fillYomitanNote(info);
+        }
+    }
+
+    /**
+     * Fork: Yomitan added a card. Memento adds what it knows (sentence
+     * audio, screenshot or manga page, title...) to its empty fields, after
+     * the card builder when that is on (video only).
+     * @param info {time, fields} from the overlay; time 0 = newest card.
+     */
+    function fillYomitanNote(info) {
+        const reading = mangaView.visible && mangaView.reader.visible;
+        const time = info.time ?? 0;
+        if (!reading && MementoSettings.searchCardBuilder)
+        {
+            overlayCardBuilder.noteTime = time;
+            if (overlayCardBuilder.openForHeadword(root.headwordOf(info.fields ?? {})))
+            {
+                return;
+            }
+        }
+        root.fillNoteNow(time);
+    }
+
+    function headwordOf(fields) {
+        for (const name in fields)
+        {
+            const value = String(fields[name]).replace(/<[^>]*>/g, "").trim();
+            if (value.length > 0)
+            {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    function fillNoteNow(time) {
+        AnkiClient.fillNewNote(time).then(function(result) {
+            if (!result.success)
+            {
+                root.controller.showText(qsTr("Card not filled: %1").arg(result.error));
+            }
+            else if (result.filled.length > 0)
+            {
+                root.controller.showText(qsTr("Card filled: %1").arg(result.filled.join(", ")));
+            }
+            else
+            {
+                root.controller.showText(qsTr("Card added (no empty fields to fill)"));
+            }
+        });
+    }
+
+    CardBuilderDialog {
+        id: overlayCardBuilder
+        property double noteTime: 0
+        onAccepted: {
+            root.fillNoteNow(overlayCardBuilder.noteTime);
+            AnkiClient.clearCardBuilderOverride();
+        }
+    }
+
+    YomitanOverlayFeeder {
+        player: root
+        subtitleItem: subtitleText
+        mangaView: mangaView
+        blocked: libraryView.visible || malView.visible || mangaListView.visible ||
+                 (mangaView.visible && !mangaView.reader.visible) || root.ocrMode
     }
 
     /* Waits a moment before resuming so that a brief slip of the cursor off
@@ -453,7 +591,10 @@ MpvPlayer {
         readonly property bool show: hoverCursorSubtitleShow.hovered ||
                                      subtitleHover.hovered ||
                                      subtitleText.hoverIndex !== -1 || // This prevents flashing on edges
-                                     controlsHover.hovered
+                                     controlsHover.hovered ||
+                                     YomitanOverlay.hover ||
+                                     YomitanOverlay.popupHover ||
+                                     YomitanOverlay.popupOpen
 
         anchors {
             left: root.left
@@ -828,7 +969,9 @@ MpvPlayer {
         subtitleItem: subtitleText
         blocked: subtitleHover.hovered ||
                  subtitleText.hoverIndex !== -1 ||
-                 definitionPopup.visible
+                 definitionPopup.visible ||
+                 YomitanOverlay.hover ||
+                 YomitanOverlay.popupOpen
     }
 
     SubtitleText {
@@ -947,30 +1090,16 @@ MpvPlayer {
         HoverHandler {
             id: subtitleHover
 
-            /* Implements auto pause on hover (and resume on leaving) */
-            onHoveredChanged: {
-                if (!subtitleHover.hovered)
-                {
-                    hoverResumeTimer.restart();
-                    popupLeaveTimer.restart();
-                }
-                else if (MementoSettings.searchPauseOnHover)
-                {
-                    hoverResumeTimer.stop();
-                    popupLeaveTimer.stop();
-                    /* Only a pause started here may be resumed automatically */
-                    if (!root.state.pause)
-                    {
-                        root.hoverPaused = true;
-                        root.hoverPauseTime = Date.now();
-                    }
-                    root.controller.pause()
-                }
-            }
+            /* Auto pause on hover (and resume on leaving): see
+             * root.onTextHoveredChanged, which also covers the overlay */
         }
 
-        /* Implement searching */
+        /* Implement searching (Yomitan does it while the overlay runs) */
         onHoverIndexChanged: {
+            if (YomitanOverlay.active)
+            {
+                return;
+            }
             switch (MementoSettings.searchMethod)
             {
             case MementoSetting.SearchMethodHover:
@@ -986,7 +1115,7 @@ MpvPlayer {
             }
         }
         onMiddleClicked: {
-            if (MementoSettings.searchMiddleMouseScan)
+            if (MementoSettings.searchMiddleMouseScan && !YomitanOverlay.active)
             {
                 Qt.callLater(definitionPopup.search, subtitleText.hoverIndex);
             }
@@ -996,6 +1125,7 @@ MpvPlayer {
             target: KeyTracker
             function onModifiersChanged() {
                 if (MementoSettings.searchMethod === MementoSetting.SearchMethodModifier &&
+                        !YomitanOverlay.active &&
                         subtitleHover.hovered &&
                         KeyTracker.modifierHeld(MementoSettings.searchModifier))
                 {

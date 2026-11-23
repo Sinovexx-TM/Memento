@@ -65,6 +65,7 @@
 #include "quick/paths.h"
 #include "quick/togglclient.h"
 #include "quick/gamepad.h"
+#include "quick/yomitanoverlay.h"
 #include "quick/subfiles.h"
 #include "quick/watchhistory.h"
 #include "quick/malclient.h"
@@ -277,6 +278,9 @@ static void registerQmlTypes(Context &context)
     );
     qmlRegisterSingletonInstance<Gamepad>(
         MEMENTO_URI, 1, 0, "Gamepad", new Gamepad(&context)
+    );
+    qmlRegisterSingletonInstance<YomitanOverlay>(
+        MEMENTO_URI, 1, 0, "YomitanOverlay", new YomitanOverlay(&context)
     );
     qmlRegisterSingletonInstance<KeyTracker>(
         MEMENTO_URI, 1, 0, "KeyTracker", context.keyTracker()
