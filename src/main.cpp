@@ -28,6 +28,8 @@
 #endif // MEMENTO_QAPPLICATION
 
 #include <QDir>
+#include <QFileInfo>
+#include <QQmlAbstractUrlInterceptor>
 #include <QLocale>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
@@ -449,6 +451,43 @@ static void installTranslator(QTranslator &translator, const Context &context)
 }
 
 /**
+ * @brief Fork (test builds): QML patch folder. When a folder "qml-patch"
+ * sits next to memento.exe, every QML/JS file of the module that also exists
+ * there (same path below the module, e.g. qml-patch/qml/controls/Player.qml)
+ * is loaded from there instead of from inside the program. Lets QML fixes be
+ * tried without a new build. No folder, no change.
+ */
+class QmlPatchInterceptor : public QQmlAbstractUrlInterceptor
+{
+public:
+    explicit QmlPatchInterceptor(const QString &dir) : m_dir(dir) {}
+
+    QUrl intercept(const QUrl &url, DataType type) override
+    {
+        if ((type != QmlFile && type != JavaScriptFile) ||
+            url.scheme() != QStringLiteral("qrc"))
+        {
+            return url;
+        }
+        static const QString PREFIX = QStringLiteral("/qt/qml/Ripose/Memento/");
+        const QString path = url.path();
+        if (!path.startsWith(PREFIX))
+        {
+            return url;
+        }
+        const QString local = m_dir + "/" + path.mid(PREFIX.size());
+        if (!QFileInfo::exists(local))
+        {
+            return url;
+        }
+        return QUrl::fromLocalFile(local);
+    }
+
+private:
+    QString m_dir;
+};
+
+/**
  * @brief Run the application.
  *
  * @return The application return code.
@@ -456,10 +495,19 @@ static void installTranslator(QTranslator &translator, const Context &context)
 [[nodiscard]]
 static int runApplication()
 {
+    /* Declared before the engine so it outlives it */
+    const QString qmlPatchDir =
+        QCoreApplication::applicationDirPath() + "/qml-patch";
+    QmlPatchInterceptor qmlPatch(qmlPatchDir);
     QQmlApplicationEngine engine;
 #if defined(Q_OS_WIN)
     engine.addImportPath(QCoreApplication::applicationDirPath() + "/qml");
 #endif // defined(Q_OS_WIN)
+    if (QFileInfo(qmlPatchDir).isDir())
+    {
+        qWarning() << "Loading QML patches from" << qmlPatchDir;
+        engine.addUrlInterceptor(&qmlPatch);
+    }
     QObject::connect(
         &engine,
         &QQmlApplicationEngine::objectCreationFailed,
