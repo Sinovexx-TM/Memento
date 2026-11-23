@@ -412,6 +412,16 @@ app.whenReady().then(async () => {
         });
     } catch (e) { /* older API */ }
     watchAnki();
+    /* Chromium keeps the extension's background script cached across runs
+     * (same version number = same cache), so a patched Yomitan file would
+     * be ignored. Drop that cache before loading; Yomitan's own data
+     * (dictionaries, settings) is in other storage and stays. */
+    try {
+        await session.defaultSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] });
+        await session.defaultSession.clearCodeCaches({});
+    } catch (e) {
+        writeLog('Could not clear the script cache: ' + e.message);
+    }
     extension = await loadYomitan();
     createOverlay();
     connect();
