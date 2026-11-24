@@ -334,6 +334,9 @@ function addedNotes(body) {
 function watchAnki() {
     const filter = { urls: ['http://*/*', 'https://*/*'] };
     session.defaultSession.webRequest.onBeforeRequest(filter, (details, callback) => {
+        if (!/127\.0\.0\.1:8765|localhost:8765/.test(details.url)) {
+            writeLog('Request ' + details.method + ' ' + details.url.slice(0, 120));
+        }
         if (details.method === 'POST') {
             const body = readBody(details);
             if (body && body.action && body.action !== 'version') {
@@ -367,6 +370,7 @@ function watchAnki() {
         });
     });
     session.defaultSession.webRequest.onErrorOccurred(filter, details => {
+        writeLog('Request failed: ' + details.error + ' ' + details.url.slice(0, 120));
         if (pendingNotes.has(details.id)) {
             writeLog('AnkiConnect addNote failed: ' + details.error);
         }
@@ -422,6 +426,11 @@ function createOverlay() {
     overlay.setIgnoreMouseEvents(true, { forward: true });
     overlay.setAlwaysOnTop(true, 'screen-saver');
     overlay.loadFile(path.join(__dirname, 'index.html'));
+    overlay.webContents.on('input-event', (event, input) => {
+        if (input.type === 'mouseDown' || input.type === 'mouseUp') {
+            writeLog('Overlay got ' + input.type);
+        }
+    });
     overlay.webContents.on('did-finish-load', () => {
         lastCursor = '';
         if (popupOpen) {
