@@ -21,7 +21,11 @@ Item {
         const origin = root.player.mapToGlobal(0, 0);
         const visibility = root.player.Window.visibility;
         const reading = root.mangaView.visible && root.mangaView.reader.visible;
-        const shown = Qt.application.state === Qt.ApplicationActive &&
+        /* Clicking Yomitan's popup can take activation from Memento for a
+         * moment; hiding then would swallow the click (e.g. on +) */
+        const active = Qt.application.state === Qt.ApplicationActive ||
+                       YomitanOverlay.popupHover || YomitanOverlay.hover;
+        const shown = active &&
                       visibility !== Window.Minimized &&
                       visibility !== Window.Hidden &&
                       Utils.modalDialogs === 0 &&
@@ -31,7 +35,7 @@ Item {
         if (!shown) {
             /* Why it's hidden goes to the overlay log */
             const why = [];
-            if (Qt.application.state !== Qt.ApplicationActive) why.push("app inactive");
+            if (!active) why.push("app inactive");
             if (visibility === Window.Minimized || visibility === Window.Hidden) why.push("minimized");
             if (Utils.modalDialogs !== 0) why.push("dialogs=" + Utils.modalDialogs);
             if (root.blocked) why.push("blocked");
