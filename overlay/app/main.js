@@ -159,6 +159,18 @@ async function loadYomitan() {
     }
 }
 
+/* Back on top of Memento: after a hide/show (card builder, app switch)
+ * Windows can leave the overlay behind Memento's window, so the popup is
+ * hidden and clicks go to Memento */
+function raiseOverlay() {
+    if (!overlay) {
+        return;
+    }
+    overlay.setAlwaysOnTop(false);
+    overlay.setAlwaysOnTop(true, 'screen-saver');
+    overlay.moveTop();
+}
+
 function setIgnore(ignore) {
     if (!overlay || ignoring === ignore) {
         return;
@@ -184,8 +196,10 @@ function applyWindow() {
     if (wantVisible && windowRect) {
         if (!overlay.isVisible()) {
             overlay.showInactive();
-            overlay.setAlwaysOnTop(true, 'screen-saver');
+            raiseOverlay();
             lastCursor = null;
+            /* Re-apply the page's mouse state after being hidden */
+            ignoring = null;
             if (popupOpen) {
                 /* Left open when Memento hid us (e.g. the card builder) */
                 closePopup();
@@ -473,6 +487,9 @@ function closePopup() {
 }
 
 ipcMain.on('popup', (_event, open) => {
+    if (open && !popupOpen) {
+        raiseOverlay();
+    }
     popupOpen = !!open;
     send({ type: 'popup', open: popupOpen });
 });
