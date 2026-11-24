@@ -241,11 +241,10 @@ Dialog {
 
     onAccepted: AnkiClient.setCardBuilderOverride(sentenceArea.text, root.selStart, root.selEnd)
     onRejected: AnkiClient.clearCardBuilderOverride()
-    onAboutToShow: Utils.modalDialogs += 1
-    onClosed: {
-        Utils.modalDialogs -= 1;
-        root.stopPlayhead();
-    }
+    /* Counted by visibility, which is always balanced (aboutToShow/closed
+     * can get out of step and leave the overlay hidden for good) */
+    onVisibleChanged: Utils.modalDialogs = Math.max(0, Utils.modalDialogs + (visible ? 1 : -1))
+    onClosed: root.stopPlayhead()
 
     /* GSM-like look: field names on the left, fields on the right */
     readonly property color accent: "#4a8fe0"

@@ -51,6 +51,7 @@ let wantVisible = false;
 let ignoring = true;            /* click-through state */
 let popupOpen = false;
 let lastCursor = '';
+let lastHiddenWhy = '';
 
 function send(obj) {
     if (socket && !socket.destroyed) {
@@ -208,6 +209,11 @@ function handleMessage(msg) {
         applyWindow();
         break;
     case 'text':
+        if (typeof msg.font === 'string' && msg.font.startsWith('hidden: ') && msg.font !== lastHiddenWhy) {
+            writeLog('Memento: ' + msg.font);
+        }
+        lastHiddenWhy = msg.font;
+        // falls through
     case 'debug':
         if (overlay) {
             overlay.webContents.send('memento', msg);

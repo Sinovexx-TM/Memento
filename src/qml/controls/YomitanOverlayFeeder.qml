@@ -29,7 +29,13 @@ Item {
 
         YomitanOverlay.setWindow(origin.x, origin.y, root.player.width, root.player.height, shown);
         if (!shown) {
-            YomitanOverlay.setText([], "");
+            /* Why it's hidden goes to the overlay log */
+            const why = [];
+            if (Qt.application.state !== Qt.ApplicationActive) why.push("app inactive");
+            if (visibility === Window.Minimized || visibility === Window.Hidden) why.push("minimized");
+            if (Utils.modalDialogs !== 0) why.push("dialogs=" + Utils.modalDialogs);
+            if (root.blocked) why.push("blocked");
+            YomitanOverlay.setText([], "hidden: " + why.join(", "));
             return;
         }
         if (reading) {
