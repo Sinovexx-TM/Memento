@@ -626,6 +626,9 @@ private:
     /* Temporary clips made for the card builder, removed when it closes */
     QStringList m_cardClips;
 
+    /* The line showing when the card builder opened (fork) */
+    mutable QString m_cardBuilderLine;
+
     /* Fields set on the next term note only */
     QVariantMap m_nextNoteFields;
 };

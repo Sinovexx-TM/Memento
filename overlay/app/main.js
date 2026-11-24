@@ -184,15 +184,19 @@ function applyWindow() {
         if (!overlay.isVisible()) {
             overlay.showInactive();
             overlay.setAlwaysOnTop(true, 'screen-saver');
+            lastCursor = null;
+            if (popupOpen) {
+                /* Left open when Memento hid us (e.g. the card builder) */
+                closePopup();
+            }
         }
     } else if (overlay.isVisible()) {
         writeLog('Hidden by Memento');
         overlay.hide();
         setIgnore(true);
-        if (popupOpen) {
-            /* Don't leave a stale Yomitan popup for next time */
-            overlay.webContents.reload();
-        }
+        /* No reload here: reloading while Yomitan is still finishing an add
+         * (the card builder opens right after +) broke later adds. A popup
+         * left open is closed when the overlay shows again. */
     }
 }
 
@@ -325,7 +329,11 @@ function watchAnki() {
     const filter = { urls: ['http://*/*', 'https://*/*'] };
     session.defaultSession.webRequest.onBeforeRequest(filter, (details, callback) => {
         if (details.method === 'POST') {
-            const notes = addedNotes(readBody(details));
+            const body = readBody(details);
+            if (body && body.action && body.action !== 'version') {
+                writeLog('AnkiConnect ' + body.action);
+            }
+            const notes = addedNotes(body);
             if (notes.length > 0) {
                 pendingNotes.set(details.id, { time: Date.now(), notes });
             }
@@ -338,6 +346,7 @@ function watchAnki() {
             return;
         }
         pendingNotes.delete(details.id);
+        writeLog('AnkiConnect addNote finished, HTTP ' + details.statusCode);
         if (details.statusCode !== 200) {
             return;
         }
@@ -352,6 +361,9 @@ function watchAnki() {
         });
     });
     session.defaultSession.webRequest.onErrorOccurred(filter, details => {
+        if (pendingNotes.has(details.id)) {
+            writeLog('AnkiConnect addNote failed: ' + details.error);
+        }
         pendingNotes.delete(details.id);
     });
 }

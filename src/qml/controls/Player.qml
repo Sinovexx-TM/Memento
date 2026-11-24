@@ -208,7 +208,7 @@ MpvPlayer {
         }
         if (subtitleHover.hovered || definitionPopup.visible ||
                 YomitanOverlay.hover || YomitanOverlay.popupHover ||
-                YomitanOverlay.popupOpen)
+                YomitanOverlay.popupOpen || Utils.modalDialogs > 0)
         {
             return;
         }
@@ -365,6 +365,8 @@ MpvPlayer {
             root.fillNoteNow(overlayCardBuilder.noteTime);
             AnkiClient.clearCardBuilderOverride();
         }
+        /* Resume (if the hover paused it) only once the builder is closed */
+        onClosed: hoverResumeTimer.restart()
     }
 
     YomitanOverlayFeeder {

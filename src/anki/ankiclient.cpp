@@ -1207,6 +1207,7 @@ QVariantMap AnkiClient::cardBuilderStart() const
     {
         return result;
     }
+    m_cardBuilderLine = sub->text();
     const std::vector<SubtitleEntry> &items = list->items();
     result["count"] = int(items.size());
 
@@ -1431,7 +1432,7 @@ QCoro::Task<QVariantMap> AnkiClient::fillNewNoteAsync(double sinceMs)
     std::unique_ptr<AnkiProfile> profileCopy{profile()->clone(this)};
     std::unique_ptr<Expression> exp{new Expression(this)};
     populate(exp.get());
-    const QString originalLine = exp->subtitle();
+    const QString originalLine = m_cardBuilderLine;
     const CardBuilderOverride o = m_cardOverride;
     m_cardOverride = {};
     if (o.active)
@@ -1528,12 +1529,22 @@ QCoro::Task<QVariantMap> AnkiClient::fillNewNoteAsync(double sinceMs)
         }
     }
     /* Card builder with previous/next lines: Yomitan already wrote the
-     * single line into the sentence field(s), so they aren't empty. Widen
-     * any field that holds (part of) the original line to the builder's
-     * text, keeping the field's own markup (e.g. the word in bold). */
+     * single line into the sentence field(s), so they aren't empty. A field
+     * holding (most of) the line that was showing when the builder opened
+     * gets the builder's text; the word Yomitan marked (<b>/<strong>/<span>)
+     * stays marked. Spaces and line breaks are ignored when comparing. */
     static const QRegularExpression TAGS("<[^>]*>");
-    const QString lineText = originalLine.trimmed();
-    if (o.active && !o.text.isEmpty() && o.text != lineText)
+    static const QRegularExpression SPACE("\\s+");
+    static const QRegularExpression MARK(
+        "<(b|strong|u|span)[^>]*>([^<]+)</\\1>",
+        QRegularExpression::CaseInsensitiveOption);
+    QString lineFlat = originalLine;
+    lineFlat.remove(TAGS);
+    lineFlat.remove(SPACE);
+    QString builderFlat = o.text;
+    builderFlat.remove(SPACE);
+    if (o.active && !o.text.isEmpty() && !lineFlat.isEmpty() &&
+        builderFlat != lineFlat)
     {
         for (auto it = noteFields.constBegin(); it != noteFields.constEnd(); ++it)
         {
@@ -1545,21 +1556,27 @@ QCoro::Task<QVariantMap> AnkiClient::fillNewNoteAsync(double sinceMs)
             QString plain = html;
             plain.remove(TAGS);
             plain.replace("&nbsp;", " ");
-            plain = plain.trimmed();
+            plain.remove(SPACE);
             /* Long enough to be the sentence, not the headword */
-            if (plain.size() < 4 || plain.size() * 2 < lineText.size() ||
-                !lineText.contains(plain))
+            if (plain.size() < 2 || plain.size() * 2 < lineFlat.size() ||
+                !lineFlat.contains(plain))
             {
                 continue;
             }
-            const qsizetype at = o.text.indexOf(plain);
-            if (at < 0)
+            QString value = o.text.toHtmlEscaped();
+            const QRegularExpressionMatch mark = MARK.match(html);
+            if (mark.hasMatch())
             {
-                continue;
+                const QString word = mark.captured(2).toHtmlEscaped();
+                const qsizetype at = value.indexOf(word);
+                if (at >= 0)
+                {
+                    value = value.left(at) + mark.captured(0) +
+                        value.mid(at + word.size());
+                }
             }
-            const QString prefix = o.text.left(at).toHtmlEscaped().replace('\n', "<br>");
-            const QString suffix = o.text.mid(at + plain.size()).toHtmlEscaped().replace('\n', "<br>");
-            fields[it.key()] = prefix + html.trimmed() + suffix;
+            value.replace('\n', "<br>");
+            fields[it.key()] = value;
             filled << it.key();
         }
     }
