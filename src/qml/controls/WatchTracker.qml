@@ -24,6 +24,7 @@ Item {
      * a file change the player already describes the next file */
     property real endPoint: -1
     property double lastEndCheck: 0
+    property bool resumePending: false
 
     function isLocal(path) {
         return path.length > 0 && !/^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(path.replace(/^file:/i, ""));
@@ -63,6 +64,7 @@ Item {
         root.lastSave = Date.now();
         root.endPoint = -1;
         root.lastEndCheck = 0;
+        root.resumePending = root.path.length > 0;
     }
 
     Component.onCompleted: root.reset()
@@ -79,6 +81,18 @@ Item {
             const pos = root.player.state.timePosition;
             if (!(pos >= 0)) {
                 return;
+            }
+            /* Opened outside the Library (Explorer, drag and drop): resume
+             * from the watch history once, unless it already started later
+             * (the Library passes its own start) */
+            if (root.resumePending && root.player.state.duration > 0) {
+                root.resumePending = false;
+                const entry = root.isLocal(root.path) ? WatchHistory.entries()[Library.key(root.path)] : null;
+                if (entry && !entry.done && entry.pos >= Library.STARTED_SECONDS &&
+                        entry.pos < root.player.state.duration - 10 && pos < 5) {
+                    root.player.controller.seek(Math.max(0, entry.pos - 3));
+                    return;
+                }
             }
             root.pos = pos;
             if (root.player.state.duration > 0) {
