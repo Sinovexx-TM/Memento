@@ -56,6 +56,16 @@ Item {
         root.lastSave = Date.now();
     }
 
+    /* Leaving the video for the Library, Anime list or manga: save where it
+     * is, then unload it (Continue resumes from the saved position) */
+    function leave() {
+        if ((root.player.state.path ?? "").length === 0) {
+            return;
+        }
+        root.flush();
+        root.player.controller.stop();
+    }
+
     function reset() {
         root.path = root.player.state.path ?? "";
         root.pos = 0;
@@ -99,7 +109,10 @@ Item {
                 root.duration = root.player.state.duration;
             }
             root.checkEnd();
-            if (Date.now() - root.lastSave >= root.saveInterval * 1000) {
+            /* While paused the position only moves by seeking: save it at
+             * once, or rewinding and then leaving would resume from the
+             * position saved when pausing */
+            if (root.player.state.pause || Date.now() - root.lastSave >= root.saveInterval * 1000) {
                 root.flush();
             }
         }

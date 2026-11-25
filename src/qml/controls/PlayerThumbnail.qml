@@ -38,7 +38,7 @@ Rectangle {
     }
 
     onPathChanged: {
-        if (thumbnail.initialized && !root.isRemoteUrl(root.path))
+        if (thumbnail.initialized && root.path.length > 0 && !root.isRemoteUrl(root.path))
         {
             root.active = thumbnail.controller.loadFile(root.path);
         }

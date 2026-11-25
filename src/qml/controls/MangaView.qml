@@ -49,9 +49,7 @@ Rectangle {
         root.refresh();
         root.visible = true;
         root.forceActiveFocus();
-        if ((root.player.state.path ?? "").length > 0 && !root.player.state.pause) {
-            root.player.controller.pause();
-        }
+        root.player.watchTracker.leave();
     }
 
     function close() {

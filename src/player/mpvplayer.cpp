@@ -148,6 +148,11 @@ void MpvPlayer::initPropertyMap()
             const char **name = reinterpret_cast<const char **>(prop->data);
             state()->setTitle(*name);
         }
+        else if (prop->format == MPV_FORMAT_NONE)
+        {
+            /* Fork: nothing loaded (stop); the window title goes back to Memento */
+            state()->setTitle(QString());
+        }
     };
 
     m_propertyMap["path"] = [this] (mpv_event_property *prop)
@@ -156,6 +161,11 @@ void MpvPlayer::initPropertyMap()
         {
             const char **path = reinterpret_cast<const char **>(prop->data);
             state()->setPath(*path);
+        }
+        else if (prop->format == MPV_FORMAT_NONE)
+        {
+            /* Fork: nothing loaded (stop), so the app doesn't think a video is open */
+            state()->setPath(QString());
         }
     };
 

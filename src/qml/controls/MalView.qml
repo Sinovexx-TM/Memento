@@ -32,9 +32,7 @@ Rectangle {
         root.list = MalClient.cachedList();
         root.visible = true;
         root.forceActiveFocus();
-        if (root.hasFile && !root.player.state.pause) {
-            root.player.controller.pause();
-        }
+        root.player.watchTracker.leave();
         root.reload();
     }
 

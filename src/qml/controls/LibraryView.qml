@@ -53,12 +53,11 @@ Rectangle {
         root.current = null;
         root.padItem = null;
         homeFlick.contentY = 0;
+        /* Saves the position first, so the list below shows it */
+        root.player.watchTracker.leave();
         root.refresh();
         root.visible = true;
         root.forceActiveFocus();
-        if (root.hasFile && !root.player.state.pause) {
-            root.player.controller.pause();
-        }
     }
 
     function close() {

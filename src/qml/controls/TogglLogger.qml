@@ -317,6 +317,14 @@ Item {
         target: root.player.state
 
         function onPathChanged() {
+            const next = root.player.state.path ?? "";
+            /* Video unloaded on going to the Library: keep this episode's
+             * watch time; it's asked about when another file opens (or on
+             * quitting), and counting goes on if the same file comes back */
+            if (next.length === 0 || next === root.path) {
+                root.lastPos = -1;
+                return;
+            }
             /* Leaving an episode: the old file's numbers are still in place
              * until resetViewing(), so the prompt describes the old file. */
             if (prompt.visible) {
