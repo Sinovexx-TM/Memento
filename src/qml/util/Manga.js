@@ -139,6 +139,25 @@ function addActive(seconds, nowMs, lastActivityMs, elapsedMs, idleMs) {
     return seconds + elapsedMs / 1000;
 }
 
+/* Reading speed. A page counts as read only after it has been on screen
+ * (actively) long enough for its text at this speed, so flipping through
+ * pages doesn't count them; they count later if you stop on them. */
+const MAX_CHARS_PER_HOUR = 30000;
+/* Below this much reading time the rate is too noisy to show */
+const MIN_RATE_SECONDS = 300;
+
+function dwellNeededMs(chars) {
+    return Math.max(0, chars) / MAX_CHARS_PER_HOUR * 3600 * 1000;
+}
+
+/* "4,935" chars per hour, or "" when there's too little time */
+function rate(chars, seconds) {
+    if (!(seconds >= MIN_RATE_SECONDS) || !(chars > 0)) {
+        return "";
+    }
+    return Math.round(chars / seconds * 3600).toLocaleString();
+}
+
 function formatMinutes(seconds) {
     const m = Math.round(seconds / 60);
     if (m < 60) {

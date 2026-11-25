@@ -79,6 +79,36 @@ Rectangle {
         reader.open(volume);
     }
 
+    /* "Avg 4,935 chars/hr  ·  1 volume finished" */
+    function seriesStats(series, history) {
+        if (!series) {
+            return "";
+        }
+        let chars = 0;
+        let seconds = 0;
+        let finished = 0;
+        for (const v of series.volumes) {
+            const h = history[v.path];
+            if (!h) {
+                continue;
+            }
+            chars += h.rateChars ?? 0;
+            seconds += h.rateSeconds ?? 0;
+            if (h.done) {
+                finished += 1;
+            }
+        }
+        const parts = [];
+        const r = Manga.rate(chars, seconds);
+        if (r.length > 0) {
+            parts.push(qsTr("Avg %1 chars/hr").arg(r));
+        }
+        if (finished > 0) {
+            parts.push(finished === 1 ? qsTr("1 volume finished") : qsTr("%1 volumes finished").arg(finished));
+        }
+        return parts.join("  ·  ");
+    }
+
     function progressText(volume) {
         const h = root.history[volume.path];
         if (!h) {
@@ -231,11 +261,21 @@ Rectangle {
                 onClicked: root.back()
             }
             Text {
+                Layout.maximumWidth: implicitWidth
                 Layout.fillWidth: true
                 text: root.current ? root.current.title : qsTr("Manga")
                 color: "#f2f2f2"
                 font.pixelSize: 26
                 font.bold: true
+                elide: Text.ElideRight
+            }
+            /* Series page: average speed over all its saved sessions */
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: 8
+                text: root.seriesStats(root.current, root.history)
+                color: "#a3a3a3"
+                font.pixelSize: 14
                 elide: Text.ElideRight
             }
             PageButton {
@@ -535,11 +575,16 @@ Rectangle {
                         text: {
                             const h = root.history[row.modelData.path];
                             const parts = [root.progressText(row.modelData)];
-                            if (h && h.chars > 0) {
-                                parts.push(h.chars.toLocaleString() + " " + qsTr("chars"));
+                            /* Saved sessions only, so chars, time and speed agree */
+                            if (h && (h.rateChars ?? 0) > 0) {
+                                parts.push(h.rateChars.toLocaleString() + " " + qsTr("chars"));
                             }
-                            if (h && h.seconds > 0) {
-                                parts.push(Manga.formatMinutes(h.seconds));
+                            if (h && (h.rateSeconds ?? 0) > 0) {
+                                parts.push(Manga.formatMinutes(h.rateSeconds));
+                            }
+                            const r = h ? Manga.rate(h.rateChars ?? 0, h.rateSeconds ?? 0) : "";
+                            if (r.length > 0) {
+                                parts.push(r + " " + qsTr("chars/hr"));
                             }
                             parts.push(row.modelData.mokuro.length > 0 ? qsTr("text ✓") : qsTr("no text yet"));
                             const job = root.jobText(row.modelData);

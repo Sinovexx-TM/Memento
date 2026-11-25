@@ -1,7 +1,7 @@
 // deno run --allow-read tools/manga_test.js
 const src = Deno.readTextFileSync(new URL("../src/qml/util/Manga.js", import.meta.url))
     .replace(".pragma library", "");
-const M = new Function(src + "; return { countChars, pageChars, hitTest, charRect, seriesTitle, volumeLabel, groupSeries, describe, addActive, formatMinutes };")();
+const M = new Function(src + "; return { countChars, pageChars, hitTest, charRect, seriesTitle, volumeLabel, groupSeries, describe, addActive, formatMinutes, dwellNeededMs, rate };")();
 
 let fails = 0;
 function eq(a, b, what) {
@@ -42,6 +42,11 @@ eq(M.addActive(10, 100000, 99000, 1000, 300000), 11, "active");
 eq(M.addActive(10, 1000000, 0, 1000, 300000), 10, "idle");
 eq(M.formatMinutes(3900), "1 h 5 min", "minutes");
 
+eq(M.dwellNeededMs(186), 22320, "dwell 186 chars");
+eq(M.dwellNeededMs(0), 0, "dwell no text");
+eq(M.rate(3862, 2817), (4935).toLocaleString(), "rate");
+eq(M.rate(2711, 219), "", "rate too short");
+eq(M.rate(0, 900), "", "rate no chars");
 const g = M.groupSeries([
     { seriesPath: "a", series: "A_ vol 01-02", cover: "c1" },
     { seriesPath: "a", series: "A_ vol 01-02", cover: "c2" },

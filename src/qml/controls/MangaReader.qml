@@ -25,6 +25,8 @@ Rectangle {
     property var session: null
     property var entry: ({})
     property var readSet: ({})
+    /* Active time (ms) the current page(s) have been on screen */
+    property double dwellMs: 0
     property real lastActivity: Date.now()
     property real lastTick: Date.now()
     /* Bumped when the session's numbers change, for the top bar */
@@ -83,9 +85,7 @@ Rectangle {
         root.resetZoom();
         root.visible = true;
         root.forceActiveFocus();
-        if ((root.player.state.path ?? "").length > 0 && !root.player.state.pause) {
-            root.player.controller.pause();
-        }
+        root.player.watchTracker.leave();
         root.startSession();
         root.pageChanged_();
     }
@@ -122,7 +122,13 @@ Rectangle {
             pages: s.pages, series: s.series, volume: s.volume
         };
         root.saveProgress();
-        return MangaLibrary.finishSession(out) ? out : null;
+        if (!MangaLibrary.finishSession(out)) {
+            return null;
+        }
+        root.entry.rateChars = (root.entry.rateChars ?? 0) + out.chars;
+        root.entry.rateSeconds = (root.entry.rateSeconds ?? 0) + out.seconds;
+        MangaLibrary.saveProgress(root.volume.path, root.entry);
+        return out;
     }
 
     function saveOpenSession() {
@@ -168,7 +174,10 @@ Rectangle {
             chars: chars,
             seconds: Math.round((root.entry.seconds ?? 0) + (root.session ? root.session.seconds - (root.session.saved ?? 0) : 0)),
             lastDate: Date.now(),
-            done: (root.entry.done ?? false) || last >= root.pages.length - 1
+            done: (root.entry.done ?? false) || last >= root.pages.length - 1,
+            /* Saved sessions only (the CSV): the volume's reading speed */
+            rateChars: root.entry.rateChars ?? 0,
+            rateSeconds: root.entry.rateSeconds ?? 0
         };
         if (root.session) {
             root.session.saved = root.session.seconds;
@@ -189,6 +198,10 @@ Rectangle {
             }
             root.session.seconds = Manga.addActive(root.session.seconds, now, root.lastActivity, elapsed, root.idleMs);
             if (now - root.lastActivity <= root.idleMs) {
+                root.dwellMs += elapsed;
+            }
+            root.countShown();
+            if (now - root.lastActivity <= root.idleMs) {
                 root.session.end = now;
             }
             root.tick += 1;
@@ -200,18 +213,40 @@ Rectangle {
 
     /* --- Pages --- */
 
+    /* Counts the page(s) on screen once they've been there long enough for
+     * their text (Manga.dwellNeededMs); pages without text count at once.
+     * true when something was counted. */
+    function countShown() {
+        if (!root.session) {
+            return false;
+        }
+        const fresh = root.shownPages.filter(p => !root.session.read[p] && root.pages[p]);
+        if (fresh.length === 0) {
+            return false;
+        }
+        const chars = fresh.reduce((sum, p) => sum + Manga.pageChars(root.pages[p]), 0);
+        if (root.dwellMs < Manga.dwellNeededMs(chars)) {
+            return false;
+        }
+        for (const p of fresh) {
+            root.session.read[p] = true;
+            root.session.pages += 1;
+            root.readSet[p] = true;
+        }
+        root.session.chars += chars;
+        root.saveOpenSession();
+        root.saveProgress();
+        root.tick += 1;
+        return true;
+    }
+
     function pageChanged_() {
+        root.dwellMs = 0;
         if (root.session) {
-            for (const p of root.shownPages) {
-                if (!root.session.read[p]) {
-                    root.session.read[p] = true;
-                    root.session.pages += 1;
-                    root.session.chars += Manga.pageChars(root.pages[p]);
-                }
-                root.readSet[p] = true;
+            if (!root.countShown()) {
+                root.saveOpenSession();
+                root.saveProgress();
             }
-            root.saveOpenSession();
-            root.saveProgress();
             root.tick += 1;
         }
         definitionPopup.clearResults();
@@ -668,8 +703,15 @@ Rectangle {
                 font.pixelSize: 13
             }
             Text {
-                text: root.tick >= 0 && root.session ? Manga.formatMinutes(root.session.seconds) + "  ·  " +
-                                     root.session.chars + " " + qsTr("chars") : ""
+                text: {
+                    if (root.tick < 0 || !root.session) {
+                        return "";
+                    }
+                    const r = Manga.rate(root.session.chars, root.session.seconds);
+                    return Manga.formatMinutes(root.session.seconds) + "  ·  " +
+                           root.session.chars.toLocaleString() + " " + qsTr("chars") + "  ·  " +
+                           (r.length > 0 ? r : "—") + " " + qsTr("chars/hr");
+                }
                 color: "#a3a3a3"
                 font.pixelSize: 13
             }
