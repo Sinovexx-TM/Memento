@@ -958,8 +958,9 @@ MpvPlayer {
                 break;
             case "x":
             case "y":
-                root.controller.command(["add", "sub-delay", name === "x" ? "-0.1" : "0.1"]);
-                root.controller.command(["show-text", "Sub delay: ${sub-delay}"]);
+                /* osd-msg: mpv shows "Sub delay: -100 ms" itself. Through the
+                 * client API, show-text does not expand ${sub-delay}. */
+                root.controller.command(["osd-msg", "add", "sub-delay", name === "x" ? "-0.1" : "0.1"]);
                 break;
             }
         }
