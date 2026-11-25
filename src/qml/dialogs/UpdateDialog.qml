@@ -25,7 +25,7 @@ Dialog {
         /* Fork: compare against this fork's releases, not upstream's.
          * Bump FORK_TAG with every fork release. */
         const MEMENTO_GITHUB_API_URL = "https://api.github.com/repos/Sinovexx-TM/Memento/releases/latest";
-        const FORK_TAG = "v2.0.2-fork.2";
+        const FORK_TAG = "v2.0.2-fork.3";
         const MEMENTO_GITHUB_URL = "https://github.com/Sinovexx-TM/Memento/releases/latest";
         const FAILURE_TITLE = qsTr("Update Check Failed");
         const FAILURE_MESSAGE = qsTr(

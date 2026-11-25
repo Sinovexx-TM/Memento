@@ -490,6 +490,11 @@ void MpvPlayer::initOptions()
     mpv_set_option_string(handle(), "vo",                     "libmpv");
     mpv_set_option_string(handle(), "ytdl",                   "yes");
     mpv_set_option_string(handle(), "pause",                  "yes");
+    /* Fork: resume comes from the watch history (WatchTracker); mpv's own
+     * watch_later files would override the Library's start position.
+     * mpv.conf can still turn them back on. */
+    mpv_set_option_string(handle(), "resume-playback",        "no");
+    mpv_set_option_string(handle(), "save-position-on-quit",  "no");
 
     QByteArray configDir = DirectoryUtils::getConfigDir().toUtf8();
     mpv_set_option_string(handle(), "config-dir", configDir);
