@@ -240,7 +240,7 @@ function buildSeries(folder, files, history, names, media) {
         /* Watched before and stopped partway through again. A finished
          * playback stores pos 0 (older entries keep the end position, so
          * the last 15 % doesn't count). */
-        var rewatch = !!h.done && dur > 0 && pos >= STARTED_SECONDS && pos < dur * 0.85;
+        var rewatch = !f.ghost && !!h.done && dur > 0 && pos >= STARTED_SECONDS && pos < dur * 0.85;
         sectionsByDir[sectionKey].episodes.push({
             path: f.path,
             key: k,
@@ -257,7 +257,7 @@ function buildSeries(folder, files, history, names, media) {
             date: h.date || 0,
             watchedDate: h.watchedDate || 0,
             rewatch: rewatch,
-            progress: (!h.done || rewatch) && dur > 0 && pos >= STARTED_SECONDS ? Math.min(1, pos / dur) : 0
+            progress: !f.ghost && (!h.done || rewatch) && dur > 0 && pos >= STARTED_SECONDS ? Math.min(1, pos / dur) : 0
         });
     }
 
