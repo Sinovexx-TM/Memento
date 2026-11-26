@@ -242,6 +242,11 @@ QtObject {
             return { title: mediaTitle && mediaTitle.length > 0 ? mediaTitle : path, episode: "" };
         }
 
+        /* Windows can't have ":" in a file name, so releases write a
+         * look-alike ("Fullmetal Alchemist꞉ Brotherhood"); show the real one.
+         * Japanese full-width "：" is left alone. */
+        path = path.replace(/[꞉∶]/g, ":");
+
         const parts = path.split(/[\\/]/).filter(p => p.length > 0);
         const name = parts.length > 0 ? parts[parts.length - 1] : path;
         const base = name.replace(/\.[A-Za-z0-9]{2,4}$/, "").trim();
